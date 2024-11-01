@@ -72,6 +72,16 @@ long iowrite(struct io_intf * io, const void * buf, unsigned long n) {
 struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
+    lit -> buf = buf;
+    lit -> size = size;
+    lit -> pos = size; //Not sure about this
+
+    struct io_intf io;
+    lit -> io_intf = io;
+    // io -> ops = ?
+
+    //lit -> io_intf = 
+    //io_term_init?
     //           Implement me!
     return &lit->io_intf;
 }

@@ -2,6 +2,7 @@
 #include "fs.h"
 #include "io.h"
 #include "virtio.h"
+#include "mkfs.c"
 
 // Create file_desc_t * struct
 /*
@@ -11,6 +12,8 @@ uint64_t file_size
 uint64_t inode
 uint64_t flags
 */
+
+boot_block_t boot;
 
 typedef struct file_desc_t{
     struct io_intf * io_intf;
@@ -38,6 +41,7 @@ int fs_getblksz(file_desc_t* fd, void * arg);
 
 int fs_mount(struct io_intf* io)
 {
+    // boot = io -> ops -> read(io, ) # Read something to get boot_block from virtio
 
     // Look at virtio to see where to get setup info, then actually set it up
     return 0;
@@ -45,6 +49,10 @@ int fs_mount(struct io_intf* io)
 
 int fs_open(const char* name, struct io_intf** io)
 {
+    // If file name exists, checl that it isn't already open
+    // If both of these are true, set the file to 'in-use' and instantiate the rest of the file members
+    // Change io to io_intf that can be used with fs_read, fs_write, to read/write the specific file that was opened
+
     // Kernel should find next file struct and set up metadata for the file
     return 0;
 }
