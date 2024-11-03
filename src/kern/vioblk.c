@@ -286,7 +286,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     condition_init(&dev->vq.used_updated, *(&dev->vq.used_updated.name));
 
     // Register the ISR
-    intr_register_irq(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
+    intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
 
     regs->status |= VIRTIO_STAT_DRIVER_OK;
     //            fence o,oi
@@ -466,7 +466,7 @@ void vioblk_isr(int irqno, void *aux)
     if (isr_status & 0x1)
     {
         // Signal condition variable to wake up waiting thread
-        condition_signal(&dev->vq.used_updated);
+        condition_broadcast(&dev->vq.used_updated);
     }
 }
 

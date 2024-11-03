@@ -17,7 +17,15 @@ CORE_OBJS = \
 	device.o \
 	virtio.o \
 	vioblk.o \
-	console.o
+	console.o \
+	plic.o \
+	thread.o \
+	timer.o \
+	ezheap.o \
+	uart.o \
+	thrasm.o \
+	kfs.o 
+
 	# Add the names of new objects here
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
