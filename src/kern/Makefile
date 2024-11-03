@@ -53,6 +53,12 @@ debug-shell: shell.elf
 
 # You might want to add more here
 
+test.elf: $(CORE_OBJS) main_tests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-test: test.elf
+	$(QEMU) $(QEMUOPTS)
+
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
 	rm -rf *.o *.elf *.asm

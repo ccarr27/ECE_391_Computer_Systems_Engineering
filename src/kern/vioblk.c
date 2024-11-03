@@ -9,6 +9,7 @@
 #include "device.h"
 #include "error.h"
 #include "string.h"
+#include "thread.h"
 
 //            COMPILE-TIME PARAMETERS
 //           
@@ -62,6 +63,8 @@ struct vioblk_request_header
 //           
 //            FIXME You may modify this structure in any way you want. It is given as a
 //            hint to help you, but you may have your own (better!) way of doing things.
+
+
 
 struct vioblk_device
 {
@@ -280,7 +283,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     // Enable the virtqueue
     virtio_enable_virtq(regs, 0);
 
-    condition_init(&dev->vq.used_updated);
+    condition_init(&dev->vq.used_updated, *(&dev->vq.used_updated.name));
 
     // Register the ISR
     intr_register_irq(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
