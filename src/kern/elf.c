@@ -146,9 +146,4 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     ioclose(io);
 
     return 0; //success
-<<<<<<< HEAD
 }
-=======
-}
-
->>>>>>> cp1
