@@ -87,6 +87,9 @@ struct io_intf * iolit_init (
     //lit -> io_intf = 
     //io_term_init?
     //           Implement me!
+    lit->buf = buf;
+    lit->size=size;
+
     return &lit->io_intf;
 }
 

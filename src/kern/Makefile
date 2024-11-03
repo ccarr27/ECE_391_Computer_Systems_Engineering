@@ -53,16 +53,19 @@ all: shell.elf
 shell.elf: $(CORE_OBJS) main_shell.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
+test.elf: $(CORE_OBJS) main_tests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
 run-shell: shell.elf
 	$(QEMU) $(QEMUOPTS)
 
 debug-shell: shell.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
-# You might want to add more here
+debug-test: test.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
-test.elf: $(CORE_OBJS) main_tests.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
+# You might want to add more here
 
 run-test: test.elf
 	$(QEMU) $(QEMUOPTS)
