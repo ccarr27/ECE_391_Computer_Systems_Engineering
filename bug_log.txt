@@ -1,0 +1,3 @@
+Checkpoint 1
+
+# Include bug, associated files, and how it was fixed

@@ -17,7 +17,15 @@ CORE_OBJS = \
 	device.o \
 	virtio.o \
 	vioblk.o \
-	console.o
+	console.o \
+	plic.o \
+	thread.o \
+	timer.o \
+	ezheap.o \
+	uart.o \
+	thrasm.o \
+	kfs.o 
+
 	# Add the names of new objects here
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
@@ -58,6 +66,12 @@ debug-test: test.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 # You might want to add more here
+
+test.elf: $(CORE_OBJS) main_tests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-test: test.elf
+	$(QEMU) $(QEMUOPTS)
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
