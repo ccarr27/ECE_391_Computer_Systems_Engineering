@@ -67,9 +67,6 @@ debug-test: test.elf
 
 # You might want to add more here
 
-test.elf: $(CORE_OBJS) main_tests.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
 run-test: test.elf
 	$(QEMU) $(QEMUOPTS)
 
