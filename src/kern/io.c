@@ -74,10 +74,14 @@ struct io_intf * iolit_init (
 {
     lit -> buf = buf;
     lit -> size = size;
-    lit -> pos = size; //Not sure about this
+    lit -> pos = 0; //Not sure about this
 
     struct io_intf io;
+
+    const struct io_ops * ops;
+    io.ops = ops;
     lit -> io_intf = io;
+
     // io -> ops = ?
 
     //lit -> io_intf = 

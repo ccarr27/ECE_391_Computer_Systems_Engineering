@@ -1,5 +1,4 @@
 #include "vioblk.c"
-#include "fs.h"
 #include "io.h"
 #include "virtio.h"
 #include "mkfs.c"
@@ -13,7 +12,33 @@ uint64_t inode
 uint64_t flags
 */
 
-boot_block_t boot;
+// Disk layout:
+// [ boot block | inodes | data blocks ]
+
+typedef struct dentry_t{
+    char file_name[FS_NAMELEN];
+    uint32_t inode;
+    uint8_t reserved[28];
+}__attribute((packed)) dentry_t; 
+
+typedef struct boot_block_t{
+    uint32_t num_dentry;
+    uint32_t num_inodes;
+    uint32_t num_data;
+    uint8_t reserved[52];
+    dentry_t dir_entries[63];
+}__attribute((packed)) boot_block_t;
+
+typedef struct inode_t{
+    uint32_t byte_len;
+    uint32_t data_block_num[1023];
+}__attribute((packed)) inode_t;
+
+typedef struct data_block_t{
+    uint8_t data[FS_BLKSZ];
+}__attribute((packed)) data_block_t;
+
+struct boot_block_t * boot;
 
 typedef struct file_desc_t{
     struct io_intf * io_intf;
@@ -41,6 +66,10 @@ int fs_getblksz(file_desc_t* fd, void * arg);
 
 int fs_mount(struct io_intf* io)
 {
+    
+    struct boot_block_t * temp();
+    boot = temp;
+    
     // boot = io -> ops -> read(io, ) # Read something to get boot_block from virtio
 
     // Look at virtio to see where to get setup info, then actually set it up
@@ -54,28 +83,40 @@ int fs_open(const char* name, struct io_intf** io)
     // Change io to io_intf that can be used with fs_read, fs_write, to read/write the specific file that was opened
 
     // Kernel should find next file struct and set up metadata for the file
+
+    //struct file_desct_t * file();
+    //assign file metadata
+    //*io = io from file
+    // change boot block, add inode, directory entry, datablock for new file
+    // change the io within the file to let it read, write, etc.
+
     return 0;
 }
 
 
 int fs_getlen(file_desc_t* fd, void * arg)
 {
-    return fd -> file_size;
+    return 0;
+    //return fd -> file_size;
 }
 
 int fs_getpos(file_desc_t* fd, void * arg)
 {
-    return fd -> file_pos;
+    return 0;
+
+    //return fd -> file_pos;
 }
 
 int fs_setpos(file_desc_t* fd, void * arg)
 {
-    fd -> file_pos = arg;
-    return arg;
+    return 0;
+    //fd -> file_pos = arg;
+    //return arg;
 }
 
 int fs_getblksz(file_desc_t* fd, void * arg)
 {
-    return fd -> io_intf -> ops -> ctl(fd -> io_intf, IOCTL_GETBLKSZ, &arg); //Gets block size of file?
+    return 0;
+    //return fd -> io_intf -> ops -> ctl(fd -> io_intf, IOCTL_GETBLKSZ, &arg); //Gets block size of file?
 }
 
