@@ -73,6 +73,9 @@ struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
     //           Implement me!
+    lit->buf = buf;
+    lit->size=size;
+
     return &lit->io_intf;
 }
 
