@@ -79,7 +79,8 @@ struct io_intf * iolit_init (
     static const struct io_ops ops = {
 		.close = iolit_close,
 		.read = iolit_read,
-		.write = iolit_write
+		.write = iolit_write,
+        .ctl = iolit_ctl
 	};
     io.ops = &ops;
     lit -> io_intf = io;
@@ -249,29 +250,55 @@ char * ioterm_getsn(struct io_term * iot, char * buf, size_t n) {
 int iolit_read(struct io_lit * io, void * buffer, unsigned long n)
 {
     /* read from pos to size in buf*/
-    char * p = buffer;
-    for(size_t x = 0; x < n; x++)
+    if(io -> pos + n >= io -> size)
     {
-        if((io -> pos) >= (io -> size))
-        {
-            return -1;
-        }
-    buffer[x] = (io -> buf[io -> pos]); // HERE
-    io -> pos += 1;
+        return -1;
     }
+    memcpy(&buffer, &(io -> buf), n); // HERE
+    io -> pos += n;
     return 0;
 }
 
 int iolit_write(struct io_lit * io, void * buffer, unsigned long n)
 {
-    // Same as read, but putting values from * buffer into buf of io
+    if(io -> pos + n >= io -> size)
+    {
+        return -1;
+    }
+    memcpy(&(io -> buf), &buffer, n); // HERE
     return 0;
 }
 
-int iolit_close(struct io_lit * io, void * buffer, unsigned long n)
+int iolit_close(struct io_lit * io)
 {
     // Not sure what to do here
+
+    // Disable ability to read or write buffer
+    io -> io_intf.ops = NULL;
     return 0;
+}
+
+
+int iolit_ctl(struct io_lit * io, int cmd, void * arg)
+{
+    if(cmd == IOCTL_GETLEN)
+    {
+        return io -> size;
+    }
+    if(cmd == IOCTL_GETPOS)
+    {
+        return io -> pos;
+    }
+    if(cmd == IOCTL_SETPOS)
+    {
+        io -> pos = arg;
+        return arg;
+    }
+    if(cmd == IOCTL_GETBLKSZ)
+    {
+        return io -> size; //Block size
+    }
+    return -1;
 }
 
 void ioterm_close(struct io_intf * io) {

@@ -50,9 +50,9 @@ typedef struct file_desc_t{
 
 struct boot_block_t * boot;
 
-file_desc_t fileArray[32];
+file_desc_t * fileArray[32];
 
-io_intf* permIO = io;
+struct io_intf * globalIO;
 //typdef struct fileDescript file_desc_t;
 
 // Defined already in fs.h
@@ -64,7 +64,7 @@ int fs_open(const char* name, struct io_intf** io);
 void fs_close(struct io_intf* io);
 long fs_write(struct io_intf* io, const void* buf, unsigned long n);
 long fs_read(struct io_intf* io, void * buf, unsigned long n);
-int fs_ioct1(struct io_intf*, int cmd, void * arg);
+int fs_ioctl(struct io_intf*, int cmd, void * arg);
 int fs_getlen(file_desc_t* fd, void * arg);
 int fs_getpos(file_desc_t* fd, void * arg);
 int fs_setpos(file_desc_t* fd, void * arg);
@@ -72,19 +72,72 @@ int fs_getblksz(file_desc_t* fd, void * arg);
 
 int fs_mount(struct io_intf* io)
 {
-    
-    struct boot_block_t * temp();
-    boot = temp;
-    
+
+    globalIO = io;
+    long err = io -> ops -> read(io, boot, 4096);
     // boot = io -> ops -> read(io, ) # Read something to get boot_block from virtio
 
     // Look at virtio to see where to get setup info, then actually set it up
-    return 0;
-}
+    return err;
+} 
 
 int fs_open(const char* name, struct io_intf** io)
 {
-    // If file name exists, checl that it isn't already open
+    int spot = -1;
+    int tempIndex = -1;
+    int tempPos = -1;
+
+    for(int x = 0; x < 64; x++)
+    {
+        if(boot -> dir_entries[x].file_name == name)
+        {
+            tempIndex = boot -> dir_entries[x].inode;
+            tempPos = x;
+        }
+    }
+    if(tempPos == -1)
+    {
+        return -1;
+    }
+
+    int cont = 0;
+    for (int y = 0; y < 32; y++)
+    {
+    if(cont == 0)
+    {
+        if(fileArray[y] == NULL)
+        {
+            cont = 1;
+            spot = y;
+        }
+        else if(fileArray[y] -> flags == 0)
+            {
+                cont = 1;
+                spot = y;
+            }
+        }
+    else
+    {
+        break;
+    }
+    }
+
+    fileArray[spot] -> inode = tempIndex;
+    fileArray[spot] -> file_pos = 0;
+    fileArray[spot] -> file_size = 0; // Should be equal to length given in inode block for particular inode
+    fileArray[spot] -> flags = 1;
+    struct io_intf * newIO;
+    static const struct io_ops newOps = {
+        .close = fs_close,
+        .read = fs_read,
+        .write = fs_write,
+        .ctl = fs_ioctl
+    };
+    *io = newIO;
+    newIO -> ops = &newOps;
+    fileArray[spot] -> io_intf = newIO;
+
+   // If file name exists, checl that it isn't already open
     // If both of these are true, set the file to 'in-use' and instantiate the rest of the file members
     // Change io to io_intf that can be used with fs_read, fs_write, to read/write the specific file that was opened
 
@@ -99,6 +152,48 @@ int fs_open(const char* name, struct io_intf** io)
     return 0;
 }
 
+long fs_read(struct io_intf* io, void * buf, unsigned long n)
+{
+    // Read from data blocks into buf
+
+    // Use address of io_intf + however many bytes to get to inode #
+    // Go to address of boot block + however many bytes to get to specific inode #
+    // keep track of length of B
+    // Go to 0th data block # (or wherever based on current position)
+    // Keep reading data into buf (using memcopy?) until have done it n times
+    // If successful, return 1
+
+    return 0;
+}
+
+long fs_write(struct io_intf* io, const void* buf, unsigned long n)
+{
+    // Same as fs_read, but read buf into data blocks
+
+    return 0;
+}
+
+int fs_ioctl(struct io_intf*, int cmd, void * arg)
+{
+    // Get address of current fd
+    file_desc_t * fd; // Should be current fd, maybe address of io?
+    if(cmd == 1)
+    {
+        return fs_getlen(fd, arg);
+    }
+    if(cmd == 3)
+    {
+        return fs_getpos(fd, arg);
+    }
+    if(cmd == 4)
+    {
+        return fs_setpos(fd, arg);
+    }
+    if(cmd == 6)
+    {
+        return fs_getblksz(fd, arg);
+    }
+}
 
 int fs_getlen(file_desc_t* fd, void * arg)
 {
