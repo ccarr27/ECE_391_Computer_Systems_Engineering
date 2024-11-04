@@ -38,8 +38,6 @@ typedef struct data_block_t{
     uint8_t data[FS_BLKSZ];
 }__attribute((packed)) data_block_t;
 
-struct boot_block_t * boot;
-
 typedef struct file_desc_t{
     struct io_intf * io_intf;
     uint64_t file_pos;
@@ -47,6 +45,14 @@ typedef struct file_desc_t{
     uint64_t inode;
     uint64_t flags;
 } file_desc_t;
+
+// Global variables we need to use
+
+struct boot_block_t * boot;
+
+file_desc_t fileArray[32];
+
+io_intf* permIO = io;
 //typdef struct fileDescript file_desc_t;
 
 // Defined already in fs.h

@@ -72,20 +72,18 @@ long iowrite(struct io_intf * io, const void * buf, unsigned long n) {
 struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
-    lit -> buf = buf;
-    lit -> size = size;
     lit -> pos = 0; //Not sure about this
 
     struct io_intf io;
 
-    const struct io_ops * ops;
-    io.ops = ops;
+    static const struct io_ops ops = {
+		.close = iolit_close,
+		.read = iolit_read,
+		.write = iolit_write
+	};
+    io.ops = &ops;
     lit -> io_intf = io;
-
-    // io -> ops = ?
-
-    //lit -> io_intf = 
-    //io_term_init?
+    // Implement ops with separate functions
     //           Implement me!
     lit->buf = buf;
     lit->size=size;
@@ -246,7 +244,35 @@ char * ioterm_getsn(struct io_term * iot, char * buf, size_t n) {
 }
 
 //           INTERNAL FUNCTION DEFINITIONS
-//          
+//
+
+int iolit_read(struct io_lit * io, void * buffer, unsigned long n)
+{
+    /* read from pos to size in buf*/
+    char * p = buffer;
+    for(size_t x = 0; x < n; x++)
+    {
+        if((io -> pos) >= (io -> size))
+        {
+            return -1;
+        }
+    buffer[x] = (io -> buf[io -> pos]); // HERE
+    io -> pos += 1;
+    }
+    return 0;
+}
+
+int iolit_write(struct io_lit * io, void * buffer, unsigned long n)
+{
+    // Same as read, but putting values from * buffer into buf of io
+    return 0;
+}
+
+int iolit_close(struct io_lit * io, void * buffer, unsigned long n)
+{
+    // Not sure what to do here
+    return 0;
+}
 
 void ioterm_close(struct io_intf * io) {
     struct io_term * const iot = (void*)io - offsetof(struct io_term, io_intf);
