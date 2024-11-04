@@ -21,6 +21,15 @@
 #define EI_MAG1     1
 #define EI_MAG2     2
 #define EI_MAG3     3
+#define EI_CLASS    4       //is what tells us if it is 32 bit or 64 bit
+#define	EI_DATA		5       //this is where we especify if it is little endian or not
+
+//EI CLASS
+#define ELFCLASS64  2       //this is the identifier for elf64 bit
+
+/* e_ident[EI_DATA] */
+#define ELFDATA2LSB	1       //this is what specifies little endian
+
 
 //memory ranges
 #define min_prog_range 0x80100000
@@ -92,10 +101,21 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         return -2;
     }
 
+    //make sure 64 bits
+    if(elf_header.e_ident[EI_CLASS] != ELFCLASS64){
+        return -9;
+    }
+
+    //make sure this is little endian
+    if(elf_header.e_ident[EI_DATA] != ELFDATA2LSB){
+        return -10;
+    }
+
     //make sure we are looking at an executable file
     if(elf_header.e_type != ET_EXEC){
         return -3;
     }
+
 
     //at this point we validated the elf header struct so now look at each program header
     for(int i = 0; i < elf_header.e_phnum; i++){

@@ -35,6 +35,8 @@ struct io_ops {
 	int (*ctl)(struct io_intf * io, int cmd, void * arg);
 };
 
+
+
 struct io_intf {
 	const struct io_ops * ops;
 };

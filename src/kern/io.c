@@ -24,6 +24,15 @@ static long ioterm_read(struct io_intf * io, void * buf, size_t len);
 static long ioterm_write(struct io_intf * io, const void * buf, size_t len);
 static int ioterm_ioctl(struct io_intf * io, int cmd, void * arg);
 
+int iolit_read(struct io_lit * io, void * buffer, unsigned long n);
+
+int iolit_write(struct io_lit * io, void * buffer, unsigned long n);
+
+int iolit_close(struct io_lit * io);
+
+int iolit_ctl(struct io_lit * io, int cmd, void * arg);
+
+
 static void iovprintf_putc(char c, void * aux);
 
 //           EXPORTED FUNCTION DEFINITIONS
@@ -72,20 +81,19 @@ long iowrite(struct io_intf * io, const void * buf, unsigned long n) {
 struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
-    lit -> buf = buf;
-    lit -> size = size;
     lit -> pos = 0; //Not sure about this
 
     struct io_intf io;
 
-    const struct io_ops * ops;
-    io.ops = ops;
+    static const struct io_ops ops = {
+		.close = iolit_close,
+		.read = iolit_read,
+		.write = iolit_write,
+        .ctl = iolit_ctl
+	};
+    io.ops = &ops;
     lit -> io_intf = io;
-
-    // io -> ops = ?
-
-    //lit -> io_intf = 
-    //io_term_init?
+    // Implement ops with separate functions
     //           Implement me!
     lit->buf = buf;
     lit->size=size;
@@ -246,7 +254,61 @@ char * ioterm_getsn(struct io_term * iot, char * buf, size_t n) {
 }
 
 //           INTERNAL FUNCTION DEFINITIONS
-//          
+//
+
+int iolit_read(struct io_lit * io, void * buffer, unsigned long n)
+{
+    /* read from pos to size in buf*/
+    if(io -> pos + n >= io -> size)
+    {
+        return -1;
+    }
+    memcpy(&buffer, &(io -> buf), n); // HERE
+    io -> pos += n;
+    return 0;
+}
+
+int iolit_write(struct io_lit * io, void * buffer, unsigned long n)
+{
+    if(io -> pos + n >= io -> size)
+    {
+        return -1;
+    }
+    memcpy(&(io -> buf), &buffer, n); // HERE
+    return 0;
+}
+
+int iolit_close(struct io_lit * io)
+{
+    // Not sure what to do here
+
+    // Disable ability to read or write buffer
+    io -> io_intf.ops = NULL;
+    return 0;
+}
+
+
+int iolit_ctl(struct io_lit * io, int cmd, void * arg)
+{
+    if(cmd == IOCTL_GETLEN)
+    {
+        return io -> size;
+    }
+    if(cmd == IOCTL_GETPOS)
+    {
+        return io -> pos;
+    }
+    if(cmd == IOCTL_SETPOS)
+    {
+        io -> pos = arg;
+        return arg;
+    }
+    if(cmd == IOCTL_GETBLKSZ)
+    {
+        return io -> size; //Block size
+    }
+    return -1;
+}
 
 void ioterm_close(struct io_intf * io) {
     struct io_term * const iot = (void*)io - offsetof(struct io_term, io_intf);
