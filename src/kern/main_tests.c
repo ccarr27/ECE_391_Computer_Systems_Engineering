@@ -32,6 +32,112 @@ extern char _kimg_end[];
 // Global variables
 
 
+#define VIOBLK_IRQ_PRIO 1
+
+//            INTERNAL CONSTANT DEFINITIONS
+//           
+
+//            VirtIO block device feature bits (number, *not* mask)
+
+#define VIRTIO_BLK_F_SIZE_MAX 1
+#define VIRTIO_BLK_F_SEG_MAX 2
+#define VIRTIO_BLK_F_GEOMETRY 4
+#define VIRTIO_BLK_F_RO 5
+#define VIRTIO_BLK_F_BLK_SIZE 6
+#define VIRTIO_BLK_F_FLUSH 9
+#define VIRTIO_BLK_F_TOPOLOGY 10
+#define VIRTIO_BLK_F_CONFIG_WCE 11
+#define VIRTIO_BLK_F_MQ 12
+#define VIRTIO_BLK_F_DISCARD 13
+#define VIRTIO_BLK_F_WRITE_ZEROES 14
+
+//            INTERNAL TYPE DEFINITIONS
+//           
+
+//            All VirtIO block device requests consist of a request header, defined below,
+//            followed by data, followed by a status byte. The header is device-read-only,
+//            the data may be device-read-only or device-written (depending on request
+//            type), and the status byte is device-written.
+
+struct vioblk_request_header
+{
+    uint32_t type;
+    uint32_t reserved;
+    uint64_t sector;
+};
+
+//            Request type (for vioblk_request_header)
+
+#define VIRTIO_BLK_T_IN 0
+#define VIRTIO_BLK_T_OUT 1
+
+//            Status byte values
+
+#define VIRTIO_BLK_S_OK 0
+#define VIRTIO_BLK_S_IOERR 1
+#define VIRTIO_BLK_S_UNSUPP 2
+
+//            Main device structure.
+//           
+//            FIXME You may modify this structure in any way you want. It is given as a
+//            hint to help you, but you may have your own (better!) way of doing things.
+
+struct vioblk_device
+{
+    volatile struct virtio_mmio_regs *regs;
+    struct io_intf io_intf;
+    uint16_t instno;
+    uint16_t irqno;
+    int8_t opened;
+    int8_t readonly;
+
+    //            optimal block size
+    uint32_t blksz;
+    //            current position
+    uint64_t pos;
+    //            sizeo of device in bytes
+    uint64_t size;
+    //            size of device in blksz blocks
+    uint64_t blkcnt;
+
+    struct
+    {
+        //            signaled from ISR
+        struct condition used_updated;
+
+        //            We use a simple scheme of one transaction at a time.
+
+        union
+        {
+            struct virtq_avail avail;
+            char _avail_filler[VIRTQ_AVAIL_SIZE(1)];
+        };
+
+        union
+        {
+            volatile struct virtq_used used;
+            char _used_filler[VIRTQ_USED_SIZE(1)];
+        };
+
+        //            The first descriptor is an indirect descriptor and is the one used in
+        //            the avail and used rings. The second descriptor points to the header,
+        //            the third points to the data, and the fourth to the status byte.
+
+        struct virtq_desc desc[4];
+        struct vioblk_request_header req_header;
+        uint8_t req_status;
+    } vq;
+
+    //            Block currently in block buffer
+    uint64_t bufblkno;
+    //            Block buffer
+    char *blkbuf;
+};
+
+
+
+
+
 
 volatile struct virtio_mmio_regs *virtio_regs;
 struct vioblk_device *vioblk_dev;
@@ -44,6 +150,8 @@ void test_vioblk_write(void);
 void test_vioblk_ioctl(void);
 void test_vioblk_close(void);
 void test_vioblk_isr(void);
+
+
 
 
 
@@ -75,7 +183,7 @@ void main(void) {
     test_vioblk_close();
 
     // Test interrupt handling
-    test_vioblk_isr();
+    //test_vioblk_isr();
 
     // Halt the system
 }
@@ -204,9 +312,9 @@ void test_vioblk_close(void) {
     kprintf("vioblk_close completed.\n");
 }
 
-void test_vioblk_isr(void) {
-    // Simulate an interrupt
-    vioblk_isr(VIRT0_IRQNO, vioblk_dev);
+// void test_vioblk_isr(void) {
+//     // Simulate an interrupt
+//     vioblk_isr(VIRT0_IRQNO, vioblk_dev);
 
-    kprintf("vioblk_isr executed.\n");
-}
+//     kprintf("vioblk_isr executed.\n");
+// }

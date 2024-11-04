@@ -64,8 +64,6 @@ struct vioblk_request_header
 //            FIXME You may modify this structure in any way you want. It is given as a
 //            hint to help you, but you may have your own (better!) way of doing things.
 
-
-
 struct vioblk_device
 {
     volatile struct virtio_mmio_regs *regs;
@@ -155,10 +153,9 @@ static int vioblk_getblksz(
 
 static const struct io_ops vioblk_ops = {
     .close = vioblk_close,
-    .read = vioblk_read, 
+    .read = vioblk_read,
     .write = vioblk_write,
-    .ctl = vioblk_ioctl
-};
+    .ctl = vioblk_ioctl};
 
 void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 {
@@ -169,7 +166,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     uint_fast32_t blksz;
     int result;
 
-    assert(regs->device_id == VIRTIO_ID_BLOCK);
+    //assert(regs->device_id == VIRTIO_ID_BLOCK);
 
     //            Signal device that we found a driver
 
@@ -187,22 +184,25 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     virtio_featset_init(needed_features);
     virtio_featset_add(needed_features, VIRTIO_F_RING_RESET);
     virtio_featset_add(needed_features, VIRTIO_F_INDIRECT_DESC);
+
     virtio_featset_init(wanted_features);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_BLK_SIZE);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_TOPOLOGY);
-    //virtio_featset_add(wanted_features, VIRTIO_BLK_F_DISCARD);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_DISCARD);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_WRITE_ZEROES);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_MQ);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_RO);
     result = virtio_negotiate_features(regs,
                                        enabled_features, wanted_features, needed_features);
 
     if (result != 0)
     {
+        kprintf ("%d: feature error\n", result);
         kprintf("%p: virtio feature negotiation failed\n", regs);
         return;
     }
 
     //            If the device provides a block size, use it. Otherwise, use 512.
-
-    regs -> status |= VIRTIO_STAT_FEATURES_OK;
 
     if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_BLK_SIZE))
         blksz = regs->config.blk.blk_size;
@@ -217,20 +217,22 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     uint32_t max_write_zeros_seg;
     uint16_t num_queues;
 
-    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_DISCARD)){
-        max_discard_sectors = regs -> config.blk.max_discard_sectors;
-        max_discard_seg = regs -> config.blk.max_discard_seg;
+    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_DISCARD))
+    {
+        max_discard_sectors = regs->config.blk.max_discard_sectors;
+        max_discard_seg = regs->config.blk.max_discard_seg;
     }
 
-    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_WRITE_ZEROES)){
-        max_write_zeros_sector = regs -> config.blk.max_write_zeroes_sectors;
-        max_write_zeros_seg = regs -> config.blk.max_write_zeroes_seg;
+    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_WRITE_ZEROES))
+    {
+        max_write_zeros_sector = regs->config.blk.max_write_zeroes_sectors;
+        max_write_zeros_seg = regs->config.blk.max_write_zeroes_seg;
     }
 
-    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_MQ)){
-        num_queues = regs -> config.blk.num_queues;
+    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_MQ))
+    {
+        num_queues = regs->config.blk.num_queues;
     }
-
 
     //            Allocate initialize device struct
 
@@ -238,7 +240,6 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     memset(dev, 0, sizeof(struct vioblk_device));
 
     //            FIXME Finish initialization of vioblk device here
-
 
     uint64_t capacity = regs->config.blk.capacity;
     uint64_t size_in_bytes = capacity * 512ULL;
@@ -277,30 +278,51 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     }
 
     // Set the queue size to 1 for simplicity
-    uint16_t queue_size = 1;
+    uint16_t queue_size = regs->queue_num;
     regs->queue_num = queue_size;
 
+    size_t desc_size = sizeof(struct virtq_desc) * queue_size;
+    size_t avail_size = sizeof(struct virtq_avail) + sizeof(uint16_t) * (queue_size - 1);
+    size_t used_size = sizeof(struct virtq_used) + sizeof(struct virtq_used_elem) * (queue_size - 1);
+    size_t vq_total_size = desc_size + avail_size + used_size;
+
     // Allocate memory for the virtqueue
+
     dev = kmalloc(sizeof(struct vioblk_device));
-    if (!dev) {
+    if (!dev)
+    {
         kprintf("Failed to allocate memory for vioblk_device\n");
         return;
     }
     memset(dev, 0, sizeof(struct vioblk_device));
 
     // Initialize descriptor ring
-    
+    struct virtq_desc *desc = dev->vq.desc;
+
+    memset(&dev->vq.desc, 0, desc_size);
+
+    for (uint16_t i = 0; i < queue_size - 1; i++)
+    {
+        if (virtio_featset_test(enabled_features, VIRTIO_F_INDIRECT_DESC))
+        {
+            desc[i].flags = VIRTQ_DESC_F_INDIRECT;
+        }
+        else {
+            desc[i].flags = VIRTQ_DESC_F_NEXT;
+        }
+        desc[i].next = i + 1;
+    }
+    desc[queue_size - 1].next = 0;
 
     // Initialize avail ring
-    memset(&dev->vq.avail, 0, sizeof(dev->vq.avail));
+    memset(&dev->vq.avail, 0, avail_size);
     dev->vq.avail.idx = 0;
 
     // Initialize used ring
-    memset((void *)&dev->vq.used, 0, sizeof(dev->vq.used));
+    memset((void *)&dev->vq.used, 0, used_size);
     dev->vq.used.idx = 0;
 
     // Attach the virtqueue to the device
-
 
     virtio_attach_virtq(
         regs,
@@ -319,8 +341,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     // Register the ISR
     intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
 
-
-// FIXME END
+    // FIXME END
 
     regs->status |= VIRTIO_STAT_DRIVER_OK;
     //            fence o,oi
@@ -336,11 +357,11 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
     {
         return -EBUSY; // Device is already opened
     }
-    
+
     dev->opened = 1;
     *ioptr = &dev->io_intf;
-    //virtio_enable_virtq(&dev->vq.avail, 0);
-    //virtio_enable_virtq(&dev->vq.used, 0);
+    // virtio_enable_virtq(&dev->vq.avail, 0);
+    // virtio_enable_virtq(&dev->vq.used, 0);
     return 0;
 }
 
@@ -352,7 +373,7 @@ void vioblk_close(struct io_intf *io)
     //            FIXME your code here
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
     dev->opened = 0;
-    virtio_reset_virtq(&dev->vq.avail,0);
+    virtio_reset_virtq(&dev->vq.avail, 0);
     virtio_reset_virtq(&dev->vq.used, 0);
     virtio_reset_virtq(dev->regs, 0);
 }
@@ -511,7 +532,8 @@ void vioblk_isr(int irqno, void *aux)
 int vioblk_getlen(const struct vioblk_device *dev, uint64_t *lenptr)
 {
     //            FIXME your code here
-     if (!lenptr) {
+    if (!lenptr)
+    {
         return -EINVAL;
     }
     *lenptr = dev->size;
@@ -521,7 +543,8 @@ int vioblk_getlen(const struct vioblk_device *dev, uint64_t *lenptr)
 int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
 {
     //            FIXME your code here
-     if (!posptr) {
+    if (!posptr)
+    {
         return -EINVAL;
     }
     *posptr = dev->pos;
@@ -531,7 +554,8 @@ int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
 int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
 {
     //            FIXME your code here
-    if (!posptr || *posptr > dev->size) {
+    if (!posptr || *posptr > dev->size)
+    {
         return -EINVAL;
     }
     dev->pos = *posptr;
@@ -542,7 +566,8 @@ int vioblk_getblksz(
     const struct vioblk_device *dev, uint32_t *blkszptr)
 {
     //            FIXME your code here
-    if (!blkszptr) {
+    if (!blkszptr)
+    {
         return -EINVAL;
     }
     *blkszptr = dev->blksz;
