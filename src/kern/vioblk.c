@@ -302,9 +302,11 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
     {
         return -EBUSY; // Device is already opened
     }
-
+    
     dev->opened = 1;
     *ioptr = &dev->io_intf;
+    virtio_enable_virtq(&dev->vq.avail, 0);
+    virtio_enable_virtq(&dev->vq.used, 0);
     return 0;
 }
 
@@ -316,6 +318,8 @@ void vioblk_close(struct io_intf *io)
     //            FIXME your code here
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
     dev->opened = 0;
+    virtio_reset_virtq(&dev->vq.avail,0);
+    virtio_reset_virtq(&dev->vq.used, 0);
     virtio_reset_virtq(dev->regs, 0);
 }
 

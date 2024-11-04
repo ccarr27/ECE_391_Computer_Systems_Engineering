@@ -23,8 +23,7 @@ CORE_OBJS = \
 	timer.o \
 	ezheap.o \
 	uart.o \
-	thrasm.o \
-	kfs.o 
+	thrasm.o 
 
 	# Add the names of new objects here
 

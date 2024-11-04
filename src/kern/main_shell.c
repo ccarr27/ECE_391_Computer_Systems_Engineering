@@ -42,7 +42,7 @@ void main(void) {
     console_init();
     intr_init();
     devmgr_init();
-    thrmgr_init();
+    thread_init();
     timer_init();
 
     heap_init(_kimg_end, (void*)USER_START);
