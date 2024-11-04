@@ -24,6 +24,15 @@ static long ioterm_read(struct io_intf * io, void * buf, size_t len);
 static long ioterm_write(struct io_intf * io, const void * buf, size_t len);
 static int ioterm_ioctl(struct io_intf * io, int cmd, void * arg);
 
+int iolit_read(struct io_lit * io, void * buffer, unsigned long n);
+
+int iolit_write(struct io_lit * io, void * buffer, unsigned long n);
+
+int iolit_close(struct io_lit * io);
+
+int iolit_ctl(struct io_lit * io, int cmd, void * arg);
+
+
 static void iovprintf_putc(char c, void * aux);
 
 //           EXPORTED FUNCTION DEFINITIONS
