@@ -50,6 +50,9 @@ typedef uint32_t	Elf64_Word;
 /* These constants define the different elf file types but we only really need ET_EXC since we only care about executables*/
 #define ET_EXEC   2         //only care about executables
 
+//machine time
+#define EM_RISCV	243	/* RISC-V */
+
 
 /* size of e_ident array (first item in elf) */
 #define EI_NIDENT 16        //should be 16
@@ -109,6 +112,10 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     //make sure this is little endian
     if(elf_header.e_ident[EI_DATA] != ELFDATA2LSB){
         return -10;
+    }
+
+    if (elf_header.e_machine != EM_RISCV) {
+        return -11;  //was not a RISC-V file
     }
 
     //make sure we are looking at an executable file

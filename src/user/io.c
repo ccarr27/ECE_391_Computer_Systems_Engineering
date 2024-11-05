@@ -292,7 +292,7 @@ int iolit_ctl(struct io_lit * io, int cmd, void * arg)
     if(cmd == IOCTL_SETPOS)
     {
         io -> pos = arg;
-        return arg;
+        return (size_t)arg;
     }
     if(cmd == IOCTL_GETBLKSZ)
     {
