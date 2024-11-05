@@ -158,8 +158,9 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     };
     struct io_intf newIO;
     newIO.ops = &newOps;
+    struct io_intf * tempIO = &newIO;
     fileArray[spot] -> io_intf = &newIO;
-    **ioptr = newIO;    // HERE!
+    *ioptr = &tempIO;    // HERE!
 
    // If file name exists, checl that it isn't already open
     // If both of these are true, set the file to 'in-use' and instantiate the rest of the file members
@@ -174,6 +175,11 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     // change the io within the file to let it read, write, etc.
 
     return 0;
+}
+
+void fs_close(struct io_intf* io)
+{
+    io -> ops = NULL;
 }
 
 long fs_read(struct io_intf* io, void * buf, unsigned long n)

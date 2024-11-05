@@ -354,9 +354,79 @@ extern char _kimg_end[];
 #define VIRT1_IOBASE 0x10002000
 #define VIRT0_IRQNO 1
 
-static void shell_main(struct io_intf * termio);
+//static void shell_main(struct io_intf * termio);
+
+extern char _companion_f_start[];
+extern char _companion_f_end[];
+
 
 void main(void) {
+    
+    struct io_lit memory_io;
+
+    // Initialize the io_lit object with the buffer
+    struct io_intf * io = iolit_init(&memory_io, _companion_f_start, _companion_f_end - _companion_f_start);
+
+    //fs_mount mounts the provided io_intf as a filesystem (if valid)
+    fs_mount(io);
+
+    char * temp = "hello";
+
+    // demonstrates file being opened with fs_open, populating file_t struct array
+    fs_open(temp, &io);
+
+    void* tempBuff[39040];
+    //demonstrate file being read in entirety with fs_read
+    io -> ops -> read(io, tempBuff, 128);
+
+    // somehow print tempBuff
+    char * display = (char *) tempBuff;
+    console_printf(display);
+
+    io -> ops -> ctl(io, 4, 0);
+
+    void * otherBuff[8];
+    otherBuff[0] = "N";
+    otherBuff[1] = "E";
+    otherBuff[2] = "W";
+    otherBuff[3] = " ";
+    otherBuff[4] = "I";
+    otherBuff[5] = "N";
+    otherBuff[6] = "F";
+    otherBuff[7] = "O";
+
+    // demonstrate use of fs_write to overwrite the contents of the file
+
+    io -> ops -> write(io, otherBuff, 1);
+
+    // Need to show that contents were overwritten, maybe read entire file in again and print in again?
+    
+    io -> ops -> read(io, tempBuff, 128);
+
+    char * newDisplay = (char *) tempBuff;
+    console_printf(newDisplay);
+
+    // demonstrates control functions
+
+    //get length
+    io -> ops -> ctl(io, 1, 0);
+
+    //get position
+    io -> ops -> ctl(io, 3, 0);
+
+    //set position
+    
+    io -> ops -> ctl(io, 4, (void *) 2);
+    io -> ops -> ctl(io, 3, 0);
+
+    // get block size
+    io -> ops -> ctl(io, 6, 0);
+
+    ioclose(io);
+
+    //-----------------------------------------------------------
+
+    /*
     struct io_intf * termio;
     struct io_intf * blkio;
     void * mmio_base;
@@ -410,8 +480,9 @@ void main(void) {
         panic("Could not open ser1");
     
     shell_main(termio);
+    */
 }
-
+/*
 void shell_main(struct io_intf * termio_raw) {
     struct io_term ioterm;
     struct io_intf * termio;
@@ -467,4 +538,5 @@ void shell_main(struct io_intf * termio_raw) {
         ioclose(exeio);
     }
 }
+*/
 

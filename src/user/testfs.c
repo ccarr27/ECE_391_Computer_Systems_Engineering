@@ -21,7 +21,7 @@ void main() {
     // Need to show file_t struct array (in kfs.raw?)
 
 
-    void* tempBuff[128];
+    void* tempBuff[39040];
     //demonstrate file being read in entirety with fs_read
     io -> ops -> read(io, tempBuff, 128);
 
