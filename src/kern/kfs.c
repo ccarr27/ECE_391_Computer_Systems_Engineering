@@ -1,4 +1,4 @@
-#include "vioblk.c"
+#include "string.h"
 #include "io.h"
 #include "virtio.h"
 #include "fs.h" // NOT SURE
@@ -156,11 +156,15 @@ int fs_open(const char * name, struct io_intf ** ioptr)
         .write = fs_write,
         .ctl = fs_ioctl
     };
-    struct io_intf newIO;
-    newIO.ops = &newOps;
-    struct io_intf * tempIO = &newIO;
-    fileArray[spot] -> io_intf = &newIO;
-    *ioptr = &tempIO;    // HERE!
+    struct io_intf * newIO;
+    //newIO =
+    newIO -> ops = &newOps;
+    fileArray[spot] -> io_intf = newIO;
+
+
+    //struct io_intf * tempIO = &newIO;
+    //*ioptr = &tempIO;    // HERE!
+    *ioptr = newIO;  
 
    // If file name exists, checl that it isn't already open
     // If both of these are true, set the file to 'in-use' and instantiate the rest of the file members
@@ -188,7 +192,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     int seek_one = ioseek(io, 16);
 
     ioseek(globalIO, 4);
-    void * read_numInodes[4];
+    void * read_numInodes;
     uint64_t numInodes;
     ioread(globalIO, read_numInodes, 4);
 
@@ -354,7 +358,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 int fs_ioctl(struct io_intf* io, int cmd, void * arg)
 {
     // Get address of current fd
-    file_desc_t * fd = io; // Should be current fd, maybe address of io?
+    struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
 
     if(cmd == 1)
     {

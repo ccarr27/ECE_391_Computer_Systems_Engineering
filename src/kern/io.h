@@ -209,10 +209,10 @@ __attribute__ ((nonnull(1,2)))
 ioterm_getsn(struct io_term * iot, char * buf, size_t n);
 
 // Add iolit_* function declarations if needed by other files
-extern int iolit_close(struct io_lit * io);
-extern int iolit_read(struct io_lit * io, void * buffer, unsigned long n);
-extern int iolit_write(struct io_lit * io, void * buffer, unsigned long n);
-extern int iolit_ctl(struct io_lit * io, int cmd, void * arg);
+extern void iolit_close(struct io_intf * io);
+extern long iolit_read(struct io_intf * io, void * buf, size_t len);
+extern long iolit_write(struct io_intf * io, const void * buf, size_t len);
+extern int iolit_ctl(struct io_intf * io, int cmd, void * arg);
 
 //           INLINE FUNCTION DEFINITIONS
 //          

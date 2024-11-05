@@ -361,7 +361,8 @@ extern char _companion_f_end[];
 
 
 void main(void) {
-    
+
+    console_printf("Hello");
     struct io_lit memory_io;
 
     // Initialize the io_lit object with the buffer

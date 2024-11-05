@@ -24,13 +24,13 @@ static long ioterm_read(struct io_intf * io, void * buf, size_t len);
 static long ioterm_write(struct io_intf * io, const void * buf, size_t len);
 static int ioterm_ioctl(struct io_intf * io, int cmd, void * arg);
 
-int iolit_read(struct io_lit * io, void * buffer, unsigned long n);
+long iolit_read(struct io_intf * io, void * buf, size_t len);
 
-int iolit_write(struct io_lit * io, void * buffer, unsigned long n);
+long iolit_write(struct io_intf * io, const void * buf, size_t len);
 
-int iolit_close(struct io_lit * io);
+void iolit_close(struct io_intf * io);
 
-int iolit_ctl(struct io_lit * io, int cmd, void * arg);
+int iolit_ctl(struct io_intf * io, int cmd, void * arg);
 
 
 static void iovprintf_putc(char c, void * aux);
@@ -256,56 +256,61 @@ char * ioterm_getsn(struct io_term * iot, char * buf, size_t n) {
 //           INTERNAL FUNCTION DEFINITIONS
 //
 
-int iolit_read(struct io_lit * io, void * buffer, unsigned long n)
+long iolit_read(struct io_intf * io, void * buf, size_t len)
 {
+    //io used to be io_lit
+    // need to get io_lit from io
+    struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+
     /* read from pos to size in buf*/
-    if(io -> pos + n >= io -> size)
+    if(iol -> pos + len >= iol -> size)
     {
         return -1;
     }
-    memcpy(&buffer, &(io -> buf), n); // HERE
-    io -> pos += n;
+    memcpy(&buf, &(iol -> buf), len); // HERE
+    iol -> pos += len;
     return 0;
 }
 
-int iolit_write(struct io_lit * io, void * buffer, unsigned long n)
+long iolit_write(struct io_intf * io, const void * buf, size_t len)
 {
-    if(io -> pos + n >= io -> size)
+    struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+    if(iol -> pos + len >= iol -> size)
     {
         return -1;
     }
-    memcpy(&(io -> buf), &buffer, n); // HERE
+    memcpy(&(iol -> buf), &buf, len); // HERE
     return 0;
 }
 
-int iolit_close(struct io_lit * io)
+void iolit_close(struct io_intf * io)
 {
     // Not sure what to do here
 
     // Disable ability to read or write buffer
-    io -> io_intf.ops = NULL;
-    return 0;
+    io -> ops = NULL;
 }
 
 
-int iolit_ctl(struct io_lit * io, int cmd, void * arg)
+int iolit_ctl(struct io_intf * io, int cmd, void * arg)
 {
+    struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
     if(cmd == IOCTL_GETLEN)
     {
-        return io -> size;
+        return iol -> size;
     }
     if(cmd == IOCTL_GETPOS)
     {
-        return io -> pos;
+        return iol -> pos;
     }
     if(cmd == IOCTL_SETPOS)
     {
-        io -> pos = arg;
-        return arg;
+        iol -> pos = (size_t) arg;
+        return iol -> pos;
     }
     if(cmd == IOCTL_GETBLKSZ)
     {
-        return io -> size; //Block size
+        return iol -> size; //Block size
     }
     return -1;
 }
