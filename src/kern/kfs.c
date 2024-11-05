@@ -134,29 +134,32 @@ int fs_open(const char * name, struct io_intf ** ioptr)
         return -2;
     }
 
-    int size;
+    void * readSize[4];
+    uint64_t size;
 
-    int otherVal = globalIO -> ops -> read(globalIO, size, 4);
+    int otherVal = globalIO -> ops -> read(globalIO, readSize, 4);
     if(otherVal != 0)
     {
         return -3;
     }
+
+    size = (uint64_t)(readSize);
 
     fileArray[spot] -> inode = tempIndex;
     fileArray[spot] -> file_pos = 0;
     
     fileArray[spot] -> file_size = size; // Should be equal to length given in inode block for particular inode
     fileArray[spot] -> flags = 1;
-    struct io_intf * newIO;
     static const struct io_ops newOps = {
         .close = fs_close,
         .read = fs_read,
         .write = fs_write,
         .ctl = fs_ioctl
     };
-    newIO -> ops = &newOps;
-    fileArray[spot] -> io_intf = newIO;
-    *ioptr = newIO;
+    struct io_intf newIO;
+    newIO.ops = &newOps;
+    fileArray[spot] -> io_intf = &newIO;
+    **ioptr = newIO;    // HERE!
 
    // If file name exists, checl that it isn't already open
     // If both of these are true, set the file to 'in-use' and instantiate the rest of the file members
@@ -179,20 +182,25 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     int seek_one = ioseek(io, 16);
 
     ioseek(globalIO, 4);
-    int numInodes;
-    ioread(globalIO, numInodes, 4);
+    void * read_numInodes[4];
+    uint64_t numInodes;
+    ioread(globalIO, read_numInodes, 4);
 
-    int numData;
+    numInodes = (uint64_t) (read_numInodes);
+    //void * read_numData;
+    //uint64_t numData;
     ioseek(globalIO, 8);
-    ioread(globalIO, numData, 4);
+    //ioread(globalIO, read_numData, 4);
 
+    //numData = (uint64_t) read_numData;
     if(seek_one != 0)
     {
         return -1;
     }
-
-    int inode_num;
-    io -> ops -> read(io, inode_num, 8);
+    void * read_inode_num[8];
+    uint64_t inode_num;
+    io -> ops -> read(io, read_inode_num, 8);
+    inode_num = (uint64_t) (read_inode_num);
 
     int seek_two = ioseek(globalIO, 4096 + (inode_num * 4096));
 
@@ -201,13 +209,16 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         return -2;
     }
 
-    int length_b;
-    globalIO -> ops -> read(globalIO, length_b, 4);
+    void * read_length_b[4];
+    uint64_t length_b;
+    globalIO -> ops -> read(globalIO, read_length_b, 4);
+    length_b = (uint64_t) read_length_b;
+    ioseek(io, 8);
 
-    int seek_three = ioseek(io, 8);
-
-    int filePos;
-    io -> ops -> read(io, filePos, 8);
+    void * read_filePos[8];
+    uint64_t filePos;
+    io -> ops -> read(io, read_filePos, 8);
+    filePos = (uint64_t) (read_filePos);
 
     // If filePos + n is bigger than fileSize, do we return an error code, or read up until that spot
     unsigned long tempN;
@@ -259,20 +270,25 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     int seek_one = ioseek(io, 16);
 
     ioseek(globalIO, 4);
-    int numInodes;
-    ioread(globalIO, numInodes, 4);
+    void * read_numInodes[4];
+    uint64_t numInodes;
+    ioread(globalIO, read_numInodes, 4);
+    numInodes = (uint64_t) read_numInodes;
 
-    int numData;
+    //void * read_numData;
+    //uint64_t numData;
     ioseek(globalIO, 8);
-    ioread(globalIO, numData, 4);
+    //ioread(globalIO, read_numData, 4);
+    //numData = (uint64_t) read_numData;
 
     if(seek_one != 0)
     {
         return -1;
     }
-
-    int inode_num;
-    io -> ops -> read(io, inode_num, 8);
+    void * read_inode_num[8];
+    uint64_t inode_num;
+    io -> ops -> read(io, read_inode_num, 8);
+    inode_num = (uint64_t) read_inode_num;
 
     int seek_two = ioseek(globalIO, 4096 + (inode_num * 4096));
 
@@ -281,13 +297,17 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         return -2;
     }
 
-    int length_b;
-    globalIO -> ops -> read(globalIO, length_b, 4);
+    void * read_length_b[4];
+    uint64_t length_b;
+    globalIO -> ops -> read(globalIO, read_length_b, 4);
+    length_b = (uint64_t) read_length_b;
+    ioseek(io, 8);
 
-    int seek_three = ioseek(io, 8);
+    void * read_filePos[8];
+    uint64_t filePos;
+    io -> ops -> read(io, read_filePos, 8);
 
-    int filePos;
-    io -> ops -> read(io, filePos, 8);
+    filePos = (uint64_t) read_filePos;
 
     // If filePos + n is bigger than fileSize, do we return an error code, or read up until that spot
     unsigned long tempN;
@@ -328,7 +348,8 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 int fs_ioctl(struct io_intf* io, int cmd, void * arg)
 {
     // Get address of current fd
-    file_desc_t * fd = &io; // Should be current fd, maybe address of io?
+    file_desc_t * fd = io; // Should be current fd, maybe address of io?
+
     if(cmd == 1)
     {
         return fs_getlen(fd, arg);
@@ -345,6 +366,7 @@ int fs_ioctl(struct io_intf* io, int cmd, void * arg)
     {
         return fs_getblksz(fd, arg);
     }
+    return 0;
 }
 
 int fs_getlen(file_desc_t* fd, void * arg)
@@ -359,19 +381,24 @@ int fs_getpos(file_desc_t* fd, void * arg)
 
 int fs_setpos(file_desc_t* fd, void * arg)
 {
-    fd -> file_pos = arg;
-    return arg;
+    fd -> file_pos = (uint64_t) arg;
+    return (int) (fd -> file_pos);
+    //Should this just return 0 or error code?
 }
 
 int fs_getblksz(file_desc_t* fd, void * arg)
 {
     // Is block size just total number of blocks (N + D + 1)?
     ioseek(globalIO, 4);
-    int n;
-    ioread(globalIO, n, 4);
+    void * read_n[4];
+    uint64_t n;
+    ioread(globalIO, read_n, 4);
+    n = (uint64_t) (read_n);
     ioseek(globalIO, 8);
-    int d;
-    ioread(globalIO, d, 4);
+    void * read_d[4];
+    uint64_t d;
+    ioread(globalIO, read_d, 4);
+    d = (uint64_t)(read_d);
 
     return n + d + 1; //Gets block size of file?
 }
