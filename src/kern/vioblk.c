@@ -166,7 +166,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     uint_fast32_t blksz;
     int result;
 
-    //assert(regs->device_id == VIRTIO_ID_BLOCK);
+    assert(regs->device_id == VIRTIO_ID_BLOCK);
 
     //            Signal device that we found a driver
 
@@ -184,6 +184,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     virtio_featset_init(needed_features);
     virtio_featset_add(needed_features, VIRTIO_F_RING_RESET);
     virtio_featset_add(needed_features, VIRTIO_F_INDIRECT_DESC);
+    //virtio_featset_add(needed_features, VIRTIO_F_EVENT_IDX);
+    //virtio_featset_add(needed_features, VIRTIO_F_ANY_LAYOUT);
 
     virtio_featset_init(wanted_features);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_BLK_SIZE);
@@ -192,6 +194,12 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_WRITE_ZEROES);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_MQ);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_RO);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_CONFIG_WCE);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_FLUSH);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_GEOMETRY);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_SEG_MAX);
+    virtio_featset_add(wanted_features, VIRTIO_BLK_F_SIZE_MAX);
+
     result = virtio_negotiate_features(regs,
                                        enabled_features, wanted_features, needed_features);
 
@@ -199,7 +207,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     {
         kprintf ("%d: feature error\n", result);
         kprintf("%p: virtio feature negotiation failed\n", regs);
-        return;
+        //return;
     }
 
     //            If the device provides a block size, use it. Otherwise, use 512.
@@ -301,6 +309,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     memset(&dev->vq.desc, 0, desc_size);
 
+    kprintf("flaggg\n");
+
     for (uint16_t i = 0; i < queue_size - 1; i++)
     {
         if (virtio_featset_test(enabled_features, VIRTIO_F_INDIRECT_DESC))
@@ -314,15 +324,18 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     }
     desc[queue_size - 1].next = 0;
 
+    kprintf("flaggggg2 \n");
+
     // Initialize avail ring
-    memset(&dev->vq.avail, 0, avail_size);
-    dev->vq.avail.idx = 0;
+    // memset(&dev->vq.avail, 0, avail_size);
+    // dev->vq.avail.idx = 0;
 
     // Initialize used ring
-    memset((void *)&dev->vq.used, 0, used_size);
-    dev->vq.used.idx = 0;
+    // memset(&dev->vq.used, 0, used_size);
+    // dev->vq.used.idx = 0;
 
     // Attach the virtqueue to the device
+    kprintf("flag3 \n");
 
     virtio_attach_virtq(
         regs,
@@ -332,6 +345,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
         (uint64_t)&dev->vq.used, // used_addr
         (uint64_t)&dev->vq.avail // avail_addr
     );
+    kprintf("finished int VirtQ\n");
 
     // Enable the virtqueue
     virtio_enable_virtq(regs, 0);
