@@ -376,9 +376,9 @@ void main(void) {
     // demonstrates file being opened with fs_open, populating file_t struct array
     fs_open(temp, &io);
 
-    void* tempBuff[39040];
+    void* tempBuff = kmalloc(39040);
     //demonstrate file being read in entirety with fs_read
-    io -> ops -> read(io, tempBuff, 128);
+    io -> ops -> read(io, tempBuff, 39040);
 
     // somehow print tempBuff
     char * display = (char *) tempBuff;
@@ -386,7 +386,9 @@ void main(void) {
 
     io -> ops -> ctl(io, 4, 0);
 
-    void * otherBuff[8];
+    //void * otherBuff = kmalloc(8);
+    //otherBuff = "NEW INFO";
+    /*
     otherBuff[0] = "N";
     otherBuff[1] = "E";
     otherBuff[2] = "W";
@@ -395,14 +397,17 @@ void main(void) {
     otherBuff[5] = "N";
     otherBuff[6] = "F";
     otherBuff[7] = "O";
+    */
 
     // demonstrate use of fs_write to overwrite the contents of the file
+
+    /*
 
     io -> ops -> write(io, otherBuff, 1);
 
     // Need to show that contents were overwritten, maybe read entire file in again and print in again?
     
-    io -> ops -> read(io, tempBuff, 128);
+    io -> ops -> read(io, tempBuff, 39040);
 
     char * newDisplay = (char *) tempBuff;
     console_printf(newDisplay);
@@ -422,6 +427,9 @@ void main(void) {
 
     // get block size
     io -> ops -> ctl(io, 6, 0);
+    */
+
+    kfree(tempBuff);
 
     ioclose(io);
 
