@@ -57,6 +57,9 @@ shell.elf: $(CORE_OBJS) main_shell.o companion.o
 test.elf: $(CORE_OBJS) main_tests.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
+elf_test.elf: $(CORE_OBJS) elf_tests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
 run-shell: shell.elf
 	$(QEMU) $(QEMUOPTS)
 
@@ -71,12 +74,22 @@ debug-test: test.elf
 run-test: test.elf
 	$(QEMU) $(QEMUOPTS)
 
+run-elf_test: elf_test.elf
+	$(QEMU) $(QEMUOPTS) 
+
+
+
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
 	rm -rf *.o *.elf *.asm
 	if [ -f companion.o.save ]; then mv companion.o.save companion.o; fi
 
+# clean:
+# 	rm -rf *.o *.elf *.asm companion.o
+
 companion.o:
 	if [ -f ../user/trek ]; then sh ./mkcomp.sh ../user/trek; fi
 	if ! [ -f ../user/trek ]; then sh ./mkcomp.sh; fi
+
+
 

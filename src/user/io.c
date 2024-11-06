@@ -267,7 +267,7 @@ long iolit_read(struct io_intf * io, void * buf, size_t len)
     {
         return -1;
     }
-    memcpy(&buf, &(iol -> buf), len); // HERE
+    memcpy(buf, iol->buf + iol->pos, len); // HERE
     iol -> pos += len;
     return 0;
 }
@@ -279,7 +279,7 @@ long iolit_write(struct io_intf * io, const void * buf, size_t len)
     {
         return -1;
     }
-    memcpy(&(iol -> buf), &buf, len); // HERE
+    memcpy(iol->buf + iol->pos, buf, len); // HERE
     return 0;
 }
 
@@ -288,7 +288,11 @@ void iolit_close(struct io_intf * io)
     // Not sure what to do here
 
     // Disable ability to read or write buffer
-    io -> ops = NULL;
+    struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+    iol->buf = NULL;
+    iol->size = 0;
+    iol->pos = 0;
+    io->ops = NULL;
 }
 
 
@@ -305,8 +309,12 @@ int iolit_ctl(struct io_intf * io, int cmd, void * arg)
     }
     if(cmd == IOCTL_SETPOS)
     {
-        iol -> pos = (size_t) arg;
-        return iol -> pos;
+        size_t new_pos = *(size_t *)arg;
+        if (new_pos >= iol->size) {
+            return -1; // Out of bounds, return error
+        }
+        iol->pos = new_pos;
+        return 0; // Return 0 to indicate success
     }
     if(cmd == IOCTL_GETBLKSZ)
     {

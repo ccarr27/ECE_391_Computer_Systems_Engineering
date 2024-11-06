@@ -90,12 +90,17 @@ typedef struct {
 
 
 int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
+    // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
+    
     Elf64_Ehdr elf_header;  //create a pointer to an empty elf64 header
+    
+    // //first step is to load the elf file so call ioread to read it into elf_header
 
-    //first step is to load the elf file so call ioread to read it into elf_header
-    if(ioread(io, &elf_header, sizeof(Elf64_Ehdr)) != sizeof(Elf64_Ehdr)){      //ioread returns size of what we just read so it should be the sizeof(Elf64_Ehdr)
+    if( ioread(io, &elf_header, sizeof(Elf64_Ehdr))!= 0){      //ioread returns size of what we just read so it should be the sizeof(Elf64_Ehdr)
         return -1;  //not same size as we expected so return -1
     }
+
+    // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
 
     //we have now read into elf_header when we called ioread inside the previous if statement
 
@@ -103,7 +108,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     if (elf_header.e_ident[EI_MAG0] != ELFMAG0 || elf_header.e_ident[EI_MAG1] != ELFMAG1 || elf_header.e_ident[EI_MAG2] != ELFMAG2 || (elf_header.e_ident[EI_MAG3] != ELFMAG3)) {
         return -2;
     }
-
+    
     //make sure 64 bits
     if(elf_header.e_ident[EI_CLASS] != ELFCLASS64){
         return -9;
@@ -129,19 +134,35 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         Elf64_Phdr prog_header;     //create pointer to an empty prog header
 
         //now seek the program headers to know where to read from
-        if(ioseek(io, elf_header.e_phoff + i * sizeof(Elf64_Phdr)) < 0){        //if ioseek returns less than 0 (in this case -3) then we have an error
+
+        // console_printf("program header size using sizeof: %lx\n", sizeof(Elf64_Phdr));
+        // console_printf("program header size using e_phentsize: %lx\n", elf_header.e_phentsize);
+
+
+
+        uint64_t seek_pos = elf_header.e_phoff + i * sizeof(Elf64_Phdr);
+        // console_printf("Seeking to program header position: %lx\n", seek_pos);
+
+        // int seek = ioseek(io, seek_pos);
+        // console_printf("ioseek return: %d\n", seek);
+
+        if(ioseek(io, seek_pos) < 0){        //if ioseek returns less than 0 (in this case -4) then we have an error
+            console_printf("ioseek failed at position %lx\n", seek_pos);
             return -4;
         }
 
         //now we can read
-        if(ioread(io, &prog_header, sizeof(Elf64_Phdr)) != sizeof(Elf64_Phdr)){ //we expect to get the same size back
+        if(ioread(io, &prog_header, sizeof(Elf64_Phdr)) != 0){ //we expect to get the same size back
             return -5; 
         }
 
         //now only continue if our program is type PT Load
         if(prog_header.p_type == PT_LOAD){
+
+            console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
             //get the address of the program
-            void *v_addr = prog_header.p_vaddr;
+            // void *v_addr = prog_header.p_vaddr;
+            void *v_addr = (void *)(uintptr_t)prog_header.p_vaddr;
 
             //now we make sure it falls within the bounds of x80100000 and 0x81000000
             if((Elf64_Addr)v_addr < min_prog_range || ((Elf64_Addr)v_addr + prog_header.p_memsz > max_prog_range)){
@@ -154,7 +175,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
             }
 
             //load this file into memory
-            if(ioread(io, v_addr, prog_header.p_filesz) != prog_header.p_filesz){ //make sure the file is the same size
+            if(ioread(io, v_addr, prog_header.p_filesz) != 0){ //make sure the file is the same size
                 return -8;
             }
 
@@ -167,10 +188,12 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     }
 
     //set the rentry point of execution
-    *entryptr = elf_header.e_entry;
+    *entryptr = (void (*)(struct io_intf *)) elf_header.e_entry;
 
     //close the file since we extracted what we needed
     ioclose(io);
+
+    console_printf("success \n");
 
     return 0; //success
 }
