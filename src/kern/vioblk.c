@@ -289,20 +289,24 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     uint16_t queue_size = regs->queue_num;
     regs->queue_num = queue_size;
 
-    size_t desc_size = sizeof(struct virtq_desc) * queue_size;
-    size_t avail_size = sizeof(struct virtq_avail) + sizeof(uint16_t) * (queue_size - 1);
-    size_t used_size = sizeof(struct virtq_used) + sizeof(struct virtq_used_elem) * (queue_size - 1);
+    size_t desc_size = 16 * queue_size;
+    size_t avail_size = 6 + 2 * queue_size;
+    size_t used_size = 6 + 8 * queue_size;
     size_t vq_total_size = desc_size + avail_size + used_size;
 
     // Allocate memory for the virtqueue
 
     dev = kmalloc(sizeof(struct vioblk_device));
+
+
     if (!dev)
     {
         kprintf("Failed to allocate memory for vioblk_device\n");
         return;
     }
     memset(dev, 0, sizeof(struct vioblk_device));
+
+   
 
     // Initialize descriptor ring
     struct virtq_desc *desc = dev->vq.desc;
@@ -311,37 +315,41 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     kprintf("flaggg\n");
 
-    for (uint16_t i = 0; i < queue_size - 1; i++)
-    {
-        if (virtio_featset_test(enabled_features, VIRTIO_F_INDIRECT_DESC))
-        {
-            desc[i].flags = VIRTQ_DESC_F_INDIRECT;
-        }
-        else {
-            desc[i].flags = VIRTQ_DESC_F_NEXT;
-        }
-        desc[i].next = i + 1;
-    }
-    desc[queue_size - 1].next = 0;
+
+
+    // for (uint16_t i = 0; i < queue_size - 1; i++)
+    // {
+    //     if (virtio_featset_test(enabled_features, VIRTIO_F_INDIRECT_DESC))
+    //     {
+    //         desc[i].flags = VIRTQ_DESC_F_INDIRECT;
+    //     }
+    //     else {
+    //         desc[i].flags = VIRTQ_DESC_F_NEXT;
+    //     }
+    //     desc[i].next = &desc[i] + desc_size;
+    // }
+    // desc[queue_size - 1].next = 0;
 
     kprintf("flaggggg2 \n");
 
     // Initialize avail ring
-    // memset(&dev->vq.avail, 0, avail_size);
-    // dev->vq.avail.idx = 0;
+    memset(&dev->vq.avail, 0, avail_size);
+    dev->vq.avail.idx = 0;
 
-    // Initialize used ring
-    // memset(&dev->vq.used, 0, used_size);
-    // dev->vq.used.idx = 0;
+    //Initialize used ring
+    memset(&dev->vq.used, 0, used_size);
+    dev->vq.used.idx = 0;
 
     // Attach the virtqueue to the device
     kprintf("flag3 \n");
+
+
 
     virtio_attach_virtq(
         regs,
         0, // queue id
         queue_size,
-        (uint64_t)dev->vq.desc,  // desc_addr
+        (uint64_t)&dev->vq.desc,  // desc_addr
         (uint64_t)&dev->vq.used, // used_addr
         (uint64_t)&dev->vq.avail // avail_addr
     );
@@ -354,6 +362,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     // Register the ISR
     intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
+
+    device_register("blk", &vioblk_open, dev);
 
     // FIXME END
 
@@ -416,6 +426,7 @@ long vioblk_read(
         }
 
         // Prepare request header
+        struct vioblk_request_header *req_hdr = &dev ->vq.req_header;
         dev->vq.req_header.type = VIRTIO_BLK_T_IN;
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
@@ -428,10 +439,48 @@ long vioblk_read(
         // Add descriptor index to avail ring
         // Notify device
         // Wait for completion (use condition variable)
+        dev->vq.req_status = 0xff;
+        uint16_t desc_idx[3];
+
+        struct virtq_desc *desc0 = &dev->vq.desc[desc_idx[0]];
+        desc0->addr = virt_to_phys((void *)req_hdr);
+        desc0->len = sizeof(struct vioblk_request_header);
+        desc0->flags = VIRTQ_DESC_F_NEXT; // Device-readable
+        desc0->next = desc_idx[1];
+
+        // Descriptor 1: Data buffer (device-writable)
+        struct virtq_desc *desc1 = &dev->vq.desc[desc_idx[1]];
+        desc1->addr = virt_to_phys((char *)dev->blkbuf);
+        desc1->len = dev->blksz;
+        desc1->flags = VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE; // Device-writable
+        desc1->next = desc_idx[2];
+
+        // Descriptor 2: Status byte (device-writable)
+        struct virtq_desc *desc2 = &dev->vq.desc[desc_idx[2]];
+        desc2->addr = virt_to_phys((void *)&dev->vq.req_status);
+        desc2->len = sizeof(uint8_t);
+        desc2->flags = VIRTQ_DESC_F_WRITE; // Device-writable
+        desc2->next = 0;
+
+        uint16_t avail_idx = dev->vq.avail.idx % VIRTQ_AVAIL_SIZE(1);
+        dev->vq.avail.ring[avail_idx] = desc_idx[0];
+
+        __sync_synchronize();
+        dev->vq.avail.idx++;
+        __sync_synchronize();
+
+        dev->regs->queue_notify = 0;
+
+        intr_disable();
+        // while (dev->vq.req_status == 0xff)
+        // {
+        //     condition_wait(!empty(&dev->vq.avail.ring));
+        // }
+        intr_enable();
 
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
-        {
+        { 
             return -EIO;
         }
 
@@ -442,6 +491,7 @@ long vioblk_read(
         dev->pos += to_read;
         total_read += to_read;
     }
+    
     return total_read;
 }
 
