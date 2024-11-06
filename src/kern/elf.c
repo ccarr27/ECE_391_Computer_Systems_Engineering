@@ -147,7 +147,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         // console_printf("ioseek return: %d\n", seek);
 
         if(ioseek(io, seek_pos) < 0){        //if ioseek returns less than 0 (in this case -4) then we have an error
-            console_printf("ioseek failed at position %lx\n", seek_pos);
+            // console_printf("ioseek failed at position %lx\n", seek_pos);
             return -4;
         }
 
@@ -159,7 +159,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         //now only continue if our program is type PT Load
         if(prog_header.p_type == PT_LOAD){
 
-            console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
+            // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
             //get the address of the program
             // void *v_addr = prog_header.p_vaddr;
             void *v_addr = (void *)(uintptr_t)prog_header.p_vaddr;
@@ -193,7 +193,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     //close the file since we extracted what we needed
     ioclose(io);
 
-    console_printf("success \n");
+    // console_printf("success \n");
 
     return 0; //success
 }
