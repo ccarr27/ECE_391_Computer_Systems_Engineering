@@ -2,6 +2,7 @@
 #include "heap.h"
 #include "io.h"
 #include "virtio.h"
+#include "console.h"
 #include "fs.h" // NOT SURE
 
 // Create file_desc_t * struct
@@ -51,9 +52,9 @@ typedef struct file_desc_t{
 
 // Global variables we need to use
 
-struct boot_block_t * boot;
+struct boot_block_t boot;
 
-file_desc_t * fileArray[32];
+file_desc_t fileArray[32];
 
 struct io_intf * globalIO;
 //typdef struct fileDescript file_desc_t;
@@ -78,7 +79,7 @@ int fs_mount(struct io_intf * blkio)
 {
 
     globalIO = blkio;
-    int err = blkio -> ops -> read(blkio, boot, 4096);
+    int err = blkio -> ops -> read(blkio, &boot, 4096);
     // boot = io -> ops -> read(io, ) # Read something to get boot_block from virtio
 
     // Look at virtio to see where to get setup info, then actually set it up
@@ -94,12 +95,22 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     int tempIndex = -1;
     int tempPos = -1;
 
+    int contTwo = 0;
+
     for(int x = 0; x < 64; x++)
     {
-        if(boot -> dir_entries[x].file_name == name)
+        if(contTwo == 0)
         {
-            tempIndex = boot -> dir_entries[x].inode;
+        if(strcmp(name, boot.dir_entries[x].file_name) == 0)
+        {
+            tempIndex = boot.dir_entries[x].inode;
             tempPos = x;
+            contTwo = 1;
+        }
+        }
+        else
+        {
+            break;
         }
     }
     if(tempPos == -1)
@@ -112,12 +123,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     {
     if(cont == 0)
     {
-        if(fileArray[y] == NULL)
-        {
-            cont = 1;
-            spot = y;
-        }
-        else if(fileArray[y] -> flags == 0)
+        if(fileArray[y].flags == 0)
             {
                 cont = 1;
                 spot = y;
@@ -128,8 +134,9 @@ int fs_open(const char * name, struct io_intf ** ioptr)
         break;
     }
     }
-    int testVal = ioseek(globalIO, 4096 + (tempIndex * 4096));
 
+    int testVal = ioseek(globalIO, 4096 + (tempIndex * 4096));
+    
     if(testVal != 0)
     {
         return -2;
@@ -147,11 +154,11 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     size = (uint64_t)(readSize);
     kfree(readSize);
 
-    fileArray[spot] -> inode = tempIndex;
-    fileArray[spot] -> file_pos = 0;
+    fileArray[spot].inode = tempIndex;
+    fileArray[spot].file_pos = 0;
     
-    fileArray[spot] -> file_size = size; // Should be equal to length given in inode block for particular inode
-    fileArray[spot] -> flags = 1;
+    fileArray[spot].file_size = size; // Should be equal to length given in inode block for particular inode
+    fileArray[spot].flags = 1;
     static const struct io_ops newOps = {
         .close = fs_close,
         .read = fs_read,
@@ -162,7 +169,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     //newIO =
     newIO = kmalloc(sizeof(struct io_intf));
     newIO -> ops = &newOps;
-    fileArray[spot] -> io_intf = newIO;
+    fileArray[spot].io_intf = newIO;
 
 
     //struct io_intf * tempIO = &newIO;
@@ -193,7 +200,7 @@ void fs_close(struct io_intf* io)
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
     // Read from data blocks into buf
-    int seek_one = ioseek(io, 16);
+    ioseek(io, 16);
 
     ioseek(globalIO, 4);
     void * read_numInodes = kmalloc(4);
@@ -201,6 +208,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     ioread(globalIO, read_numInodes, 4);
 
     numInodes = (uint64_t) (read_numInodes);
+    console_printf("numInodes %d \n", numInodes);
     kfree(read_numInodes);
     //void * read_numData;
     //uint64_t numData;
@@ -208,10 +216,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     //ioread(globalIO, read_numData, 4);
 
     //numData = (uint64_t) read_numData;
-    if(seek_one != 0)
-    {
-        return -1;
-    }
+
     void * read_inode_num = kmalloc(8);
     uint64_t inode_num;
     io -> ops -> read(io, read_inode_num, 8);
@@ -258,18 +263,19 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         int leftInBlock = 4096 - filePos % 4096; //Tells us how many bytes left to read in the block before finishing the block
         if(leftInBlock >= tempN)
         {
-        memcpy(globalIO, buf, leftInBlock);
+        memcpy(buf, globalIO, leftInBlock);
         tempN -= leftInBlock;
         }
         else
         {
-            memcpy(globalIO, buf, tempN);
+            memcpy(buf, globalIO, tempN);
             tempN = 0;
         }
         filePos += leftInBlock;
         // After finish read, update filePos
         blockNum += 1;
     }
+
 
     return 0;
 

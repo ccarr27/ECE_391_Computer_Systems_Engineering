@@ -75,7 +75,8 @@ run-test: test.elf
 	$(QEMU) $(QEMUOPTS)
 
 run-elf_test: elf_test.elf
-	$(QEMU) $(QEMUOPTS) 
+	$(QEMU) $(QEMUOPTS)
+
 
 
 

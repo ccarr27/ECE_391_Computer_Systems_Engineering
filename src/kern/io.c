@@ -7,7 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-
+#include "console.h"
 //           INTERNAL TYPE DEFINITIONS
 //          
 
