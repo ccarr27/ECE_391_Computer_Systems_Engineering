@@ -305,15 +305,16 @@
 //     void * otherBuff = kmalloc(3);
 //     otherBuff = "bob";
 //     iowrite(*forOpen, otherBuff, 3);
-//     console_printf("testing %d \n", ioctl(*forOpen, 3, NULL));
+//     console_printf("testing io result %d \n", ioctl(*forOpen, 3, NULL));
 
 //     console_printf("testing get length: %d \n", ioctl(*forOpen, 1, NULL));
 //     console_printf("testing get position: %d \n", ioctl(*forOpen, 3, NULL));
 //     console_printf("testing set position: %d \n", ioctl(*forOpen, 4, 0));
 //     console_printf("testing get position: %d \n", ioctl(*forOpen, 3, NULL));
+//      console_printf("testing get block size: %d \n", ioctl(*forOpen, 6. NULL));
 // /*
 
-
+// Testing fs_read
 //      void* tempBuff = kmalloc(39040);s
 // //     //demonstrate file being read in entirety with fs_read
 //     int testRead = ioread(*forOpen, tempBuff, 39040);
