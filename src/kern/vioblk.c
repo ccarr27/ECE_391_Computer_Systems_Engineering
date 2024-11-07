@@ -158,7 +158,12 @@ static const struct io_ops vioblk_ops = {
     .ctl = vioblk_ioctl};
 
 
-
+/*
+Description: this function initializes virt io block
+Purpose: fills out descriptors and sets everything up
+Input: takes in the registers 
+Output: void so does not return anything
+*/
 void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 {
     //            FIXME add additional declarations here if needed
@@ -350,6 +355,13 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     __sync_synchronize();
 }
 
+
+/*
+Description: this opens the vioblk
+Purpose: the purpose is to set both the avail and used queues
+Input: takes in a pointer to an io_intf and extra data
+Output: return 0 if success
+*/
 int vioblk_open(struct io_intf **ioptr, void *aux)
 {
     //            FIXME your code here
@@ -367,6 +379,13 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 //            Must be called with interrupts enabled to ensure there are no pending
 //            interrupts (ISR will not execute after closing).
 
+
+/*
+Description: this closes the vioblk device
+Purpose: the purpose if to close the device
+Input: the io_intf struct
+Output:void so return nothing
+*/
 void vioblk_close(struct io_intf *io)
 {
     //            FIXME your code here
@@ -374,6 +393,15 @@ void vioblk_close(struct io_intf *io)
     dev->opened = 0;
     virtio_reset_virtq(dev->regs, 0);
 }
+
+
+
+/*
+Description: this reads from the buffers
+Purpose:it reads an amount of bufsz from the disk into buf
+Input: we pass in the io_inf and buffer and the size we want to read
+Output: return the amount read
+*/
 
 long vioblk_read(
     struct io_intf *restrict io,
@@ -470,6 +498,13 @@ long vioblk_read(
     return total_read;
 }
 
+
+/*
+Description: this writes from the buf to the disk
+Purpose: the purpose is to write an amount from the buffer to disk
+Input: should take in the io, buf to read from and n for number of bites to read
+Output: return the amount read
+*/
 long vioblk_write(
     struct io_intf *restrict io,
     const void *restrict buf,
@@ -533,6 +568,14 @@ long vioblk_write(
     return total_written;
 }
 
+
+/*
+Description: this adds extra control for the vioblk
+Purpose: we can get len and pos and set the pos and get blkzs
+Input: takes in the io and a command as well as extra arg when needed
+Output: will return -ENOTSUP if error 
+*/
+
 int vioblk_ioctl(struct io_intf *restrict io, int cmd, void *restrict arg)
 {
     struct vioblk_device *const dev = (void *)io -
@@ -554,6 +597,12 @@ int vioblk_ioctl(struct io_intf *restrict io, int cmd, void *restrict arg)
         return -ENOTSUP;
     }
 }
+/*
+Description: This sets up the isr 
+Purpose: to set the isr and conditon broadcast
+Input: takes in the irqno and extra data
+Output: void so does not return anything
+*/
 
 void vioblk_isr(int irqno, void *aux)
 {
@@ -567,6 +616,12 @@ void vioblk_isr(int irqno, void *aux)
         condition_broadcast(&dev->vq.used_updated);
     }
 }
+/*
+Description: gets the length of the vioblk
+Purpose: to get length
+Input: the device
+Output: 0 for success
+*/
 
 int vioblk_getlen(const struct vioblk_device *dev, uint64_t *lenptr)
 {
@@ -578,6 +633,12 @@ int vioblk_getlen(const struct vioblk_device *dev, uint64_t *lenptr)
     *lenptr = dev->size;
     return 0;
 }
+/*
+Description: set the position
+Purpose: to get the psotion
+Input: the device
+Output: 0 for success
+*/
 
 int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
 {
@@ -589,6 +650,12 @@ int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
     *posptr = dev->pos;
     return 0;
 }
+/*
+Description: make sure position is valid then set
+Purpose: to set the position
+Input:takes in the device
+Output: 0 for success
+*/
 
 int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
 {
@@ -600,6 +667,12 @@ int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
     dev->pos = *posptr;
     return 0;
 }
+/*
+Description:to get the blk size
+Purpose:to get the blk size
+Input: takes in the deivce
+Output: 0 for success
+*/
 
 int vioblk_getblksz(
     const struct vioblk_device *dev, uint32_t *blkszptr)
