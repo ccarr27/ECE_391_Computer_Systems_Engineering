@@ -157,6 +157,8 @@ static const struct io_ops vioblk_ops = {
     .write = vioblk_write,
     .ctl = vioblk_ioctl};
 
+
+
 void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 {
     //            FIXME add additional declarations here if needed
@@ -357,10 +359,8 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
     {
         return -EBUSY; // Device is already opened
     }
-
     dev->opened = 1;
     *ioptr = &dev->io_intf;
-    virtio_enable_virtq(dev->regs, 0);
     return 0;
 }
 
@@ -447,10 +447,10 @@ long vioblk_read(
         dev->regs->queue_notify = 0;
 
         intr_disable();
-        // while (dev->vq.req_status == 0xff)
-        // {
-        //     condition_wait(!empty(&dev->vq.avail.ring));
-        // }
+        while (dev->vq.req_status == 0xff)
+        {
+            condition_wait(&dev->vq.used_updated);
+        }
         intr_enable();
 
         // Check status byte
