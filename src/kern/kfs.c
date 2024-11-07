@@ -3,21 +3,27 @@
 #include "io.h"
 #include "virtio.h"
 #include "console.h"
-#include "fs.h" // NOT SURE
-
-// Create file_desc_t * struct
-/*
-uint64_t io_intf
-uint64_t file_pos
-uint64_t file_size
-uint64_t inode
-uint64_t flags
-*/
+#include "fs.h"
 
 // Disk layout:
 // [ boot block | inodes | data blocks ]
 #define FS_BLKSZ      4096
 #define FS_NAMELEN    32
+#define numFiles      64
+#define blockNumSize  4
+#define fileStructSize 8
+
+#define IOCTL_GETLEN        1
+//           arg is pointer to uint64_t
+#define IOCTL_SETLEN        2
+//           arg is pointer to uint64_t
+#define IOCTL_GETPOS        3
+//           arg is pointer to uint64_t
+#define IOCTL_SETPOS        4
+//           arg is ignored
+#define IOCTL_FLUSH         5
+//           arg is pointer to uint32_t
+#define IOCTL_GETBLKSZ      6
 
 typedef struct dentry_t{
     char file_name[FS_NAMELEN];
@@ -56,14 +62,9 @@ struct boot_block_t boot;
 
 file_desc_t fileArray[32];
 
-struct io_intf * globalIO;
-//typdef struct fileDescript file_desc_t;
+uint64_t intSpot;
 
-// Defined already in fs.h
-/*
-int fs_mount(struct io_intf* io);
-int fs_open(const char* name, struct io_intf** io);
-*/
+struct io_intf * globalIO;
 
 void fs_close(struct io_intf* io);
 long fs_write(struct io_intf* io, const void* buf, unsigned long n);
@@ -79,7 +80,7 @@ int fs_mount(struct io_intf * blkio)
 {
 
     globalIO = blkio;
-    int err = blkio -> ops -> read(blkio, &boot, 4096);
+    int err = blkio -> ops -> read(blkio, &boot, FS_BLKSZ);
     // boot = io -> ops -> read(io, ) # Read something to get boot_block from virtio
 
     // Look at virtio to see where to get setup info, then actually set it up
@@ -97,7 +98,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
 
     int contTwo = 0;
 
-    for(int x = 0; x < 64; x++)
+    for(int x = 0; x < numFiles; x++)
     {
         if(contTwo == 0)
         {
@@ -119,7 +120,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     }
 
     int cont = 0;
-    for (int y = 0; y < 32; y++)
+    for (int y = 0; y < FS_NAMELEN; y++)
     {
     if(cont == 0)
     {
@@ -134,18 +135,18 @@ int fs_open(const char * name, struct io_intf ** ioptr)
         break;
     }
     }
+    int testVal = ioseek(globalIO, FS_BLKSZ + (tempIndex * FS_BLKSZ));
 
-    int testVal = ioseek(globalIO, 4096 + (tempIndex * 4096));
     
     if(testVal != 0)
     {
         return -2;
     }
 
-    void * readSize = kmalloc(4);
+    void * readSize = kmalloc(blockNumSize);
     uint64_t size;
 
-    int otherVal = globalIO -> ops -> read(globalIO, readSize, 4);
+    int otherVal = globalIO -> ops -> read(globalIO, &readSize, blockNumSize);
     if(otherVal != 0)
     {
         return -3;
@@ -170,7 +171,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     newIO = kmalloc(sizeof(struct io_intf));
     newIO -> ops = &newOps;
     fileArray[spot].io_intf = newIO;
-
+    intSpot = spot;
 
     //struct io_intf * tempIO = &newIO;
     //*ioptr = &tempIO;    // HERE!
@@ -200,49 +201,43 @@ void fs_close(struct io_intf* io)
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
     // Read from data blocks into buf
-    ioseek(io, 16);
 
-    ioseek(globalIO, 4);
-    void * read_numInodes = kmalloc(4);
+    ioseek(globalIO, blockNumSize);
+    void * read_numInodes = kmalloc(blockNumSize);
     uint64_t numInodes;
-    ioread(globalIO, read_numInodes, 4);
+    globalIO -> ops -> read(globalIO, &read_numInodes, blockNumSize);
 
     numInodes = (uint64_t) (read_numInodes);
-    console_printf("numInodes %d \n", numInodes);
+
     kfree(read_numInodes);
     //void * read_numData;
     //uint64_t numData;
-    ioseek(globalIO, 8);
+    //ioseek(globalIO, 8);
     //ioread(globalIO, read_numData, 4);
 
     //numData = (uint64_t) read_numData;
+    //ioseek(io, 24);
+    //console_printf("pos %d \n", io -> ops -> ctl(io, 3, NULL));
+ 
+    uint64_t inode_num = fileArray[intSpot].inode;
 
-    void * read_inode_num = kmalloc(8);
-    uint64_t inode_num;
-    io -> ops -> read(io, read_inode_num, 8);
-    inode_num = (uint64_t) (read_inode_num);
-    kfree(read_inode_num);
+    //console_printf("inode %d \n", inode_num);
 
-    int seek_two = ioseek(globalIO, 4096 + (inode_num * 4096));
+    int seek_two = ioseek(globalIO, FS_BLKSZ + (inode_num * FS_BLKSZ));
 
     if(seek_two != 0)
     {
         return -2;
     }
 
-    void * read_length_b = kmalloc(4);
+    void * read_length_b = kmalloc(blockNumSize);
     uint64_t length_b;
-    globalIO -> ops -> read(globalIO, read_length_b, 4);
+    globalIO -> ops -> read(globalIO, &read_length_b, blockNumSize);
     length_b = (uint64_t) read_length_b;
-    ioseek(io, 8);
+    ioseek(io, fileStructSize);
     kfree(read_length_b);
 
-    void * read_filePos = kmalloc(8);
-    uint64_t filePos;
-    io -> ops -> read(io, read_filePos, 8);
-    filePos = (uint64_t) (read_filePos);
-    kfree(read_filePos);
-
+    uint64_t filePos = fileArray[intSpot].file_pos;
     // If filePos + n is bigger than fileSize, do we return an error code, or read up until that spot
     unsigned long tempN;
     if(filePos + n > length_b)
@@ -254,28 +249,35 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         tempN = n;
     }
 
-    int blockNum = 0;
-
     while(tempN != 0)
     {
-        ioseek(globalIO, 4096 + (numInodes * 4096) + (blockNum * 4096) + (filePos % 4096));
+        int blockNum = filePos / FS_BLKSZ;
+        ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
+        void * read_blockSpot = kmalloc(blockNumSize);
+        ioread(globalIO, &read_blockSpot, blockNumSize);
+        uint64_t blockSpot = (uint64_t) read_blockSpot;
+
+        ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
+
+
         // Move to correct block #
-        int leftInBlock = 4096 - filePos % 4096; //Tells us how many bytes left to read in the block before finishing the block
-        if(leftInBlock >= tempN)
+        int leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
+
+        if(leftInBlock <= tempN)
         {
-        memcpy(buf, globalIO, leftInBlock);
+        memcpy(buf, &globalIO, leftInBlock);
         tempN -= leftInBlock;
+        filePos += leftInBlock;
         }
         else
         {
-            memcpy(buf, globalIO, tempN);
+            memcpy(buf, &globalIO, tempN);
+            filePos += tempN;
             tempN = 0;
         }
-        filePos += leftInBlock;
         // After finish read, update filePos
-        blockNum += 1;
     }
-
+    fileArray[intSpot].file_pos = filePos;
 
     return 0;
 
@@ -289,55 +291,44 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
 
 long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 {
-    // Same as fs_read, but read buf into data blocks
+    // Read from data blocks into buf
 
-    int seek_one = ioseek(io, 16);
-
-    ioseek(globalIO, 4);
-    void * read_numInodes = kmalloc(4);
+    ioseek(globalIO, blockNumSize);
+    void * read_numInodes = kmalloc(blockNumSize);
     uint64_t numInodes;
-    ioread(globalIO, read_numInodes, 4);
-    numInodes = (uint64_t) read_numInodes;
-    kfree(read_numInodes);
+    globalIO -> ops -> read(globalIO, &read_numInodes, blockNumSize);
 
+    numInodes = (uint64_t) (read_numInodes);
+
+    kfree(read_numInodes);
     //void * read_numData;
     //uint64_t numData;
-    ioseek(globalIO, 8);
+    //ioseek(globalIO, 8);
     //ioread(globalIO, read_numData, 4);
+
     //numData = (uint64_t) read_numData;
+    //ioseek(io, 24);
+    //console_printf("pos %d \n", io -> ops -> ctl(io, 3, NULL));
+ 
+    uint64_t inode_num = fileArray[intSpot].inode;
 
-    if(seek_one != 0)
-    {
-        return -1;
-    }
-    void * read_inode_num = kmalloc(8);
-    uint64_t inode_num;
-    io -> ops -> read(io, read_inode_num, 8);
-    inode_num = (uint64_t) read_inode_num;
-    kfree(read_inode_num);
+    //console_printf("inode %d \n", inode_num);
 
-    int seek_two = ioseek(globalIO, 4096 + (inode_num * 4096));
+    int seek_two = ioseek(globalIO, FS_BLKSZ + (inode_num * FS_BLKSZ));
 
     if(seek_two != 0)
     {
         return -2;
     }
 
-    void * read_length_b = kmalloc(4);
+    void * read_length_b = kmalloc(blockNumSize);
     uint64_t length_b;
-    globalIO -> ops -> read(globalIO, read_length_b, 4);
+    globalIO -> ops -> read(globalIO, &read_length_b, blockNumSize);
     length_b = (uint64_t) read_length_b;
+    ioseek(io, fileStructSize);
     kfree(read_length_b);
-    ioseek(io, 8);
 
-    void * read_filePos = kmalloc(8);
-    uint64_t filePos;
-    io -> ops -> read(io, read_filePos, 8);
-
-    filePos = (uint64_t) read_filePos;
-
-    kfree(read_filePos);
-
+    uint64_t filePos = fileArray[intSpot].file_pos;
     // If filePos + n is bigger than fileSize, do we return an error code, or read up until that spot
     unsigned long tempN;
     if(filePos + n > length_b)
@@ -349,49 +340,59 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         tempN = n;
     }
 
-    int blockNum = 0;
-
     while(tempN != 0)
     {
-        ioseek(globalIO, 4096 + (numInodes * 4096) + (blockNum * 4096) + (filePos % 4096));
+        int blockNum = filePos / FS_BLKSZ;
+        ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
+        void * read_blockSpot = kmalloc(blockNumSize);
+        ioread(globalIO, &read_blockSpot, blockNumSize);
+        uint64_t blockSpot = (uint64_t) read_blockSpot;
+
+        ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
+
+
         // Move to correct block #
-        int leftInBlock = 4096 - filePos % 4096; //Tells us how many bytes left to read in the block before finishing the block
-        if(leftInBlock >= tempN)
+        int leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
+
+        if(leftInBlock <= tempN)
         {
-        memcpy(globalIO, buf, leftInBlock);
+        memcpy(globalIO, &buf, leftInBlock);
         tempN -= leftInBlock;
+        filePos += leftInBlock;
         }
         else
         {
-            memcpy(globalIO, buf, tempN);
+            memcpy(globalIO, &buf, tempN);
+            filePos += tempN;
             tempN = 0;
         }
-        filePos += leftInBlock;
         // After finish read, update filePos
-        blockNum += 1;
     }
+    fileArray[intSpot].file_pos = filePos;
 
     return 0;
+    
 }
 
 int fs_ioctl(struct io_intf* io, int cmd, void * arg)
 {
     // Get address of current fd
-    struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
+    struct file_desc_t * const fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
 
-    if(cmd == 1)
+    file_desc_t fdOther = fileArray[intSpot];
+    if(cmd == IOCTL_GETLEN)
     {
-        return fs_getlen(fd, arg);
+        return fs_getlen(&fdOther, arg);
     }
-    if(cmd == 3)
+    if(cmd == IOCTL_GETPOS)
     {
-        return fs_getpos(fd, arg);
+        return fs_getpos(&fdOther, arg);
     }
-    if(cmd == 4)
+    if(cmd == IOCTL_SETPOS)
     {
-        return fs_setpos(fd, arg);
+        return fs_setpos(&fdOther, arg);
     }
-    if(cmd == 6)
+    if(cmd == IOCTL_GETBLKSZ)
     {
         return fs_getblksz(fd, arg);
     }
@@ -400,34 +401,37 @@ int fs_ioctl(struct io_intf* io, int cmd, void * arg)
 
 int fs_getlen(file_desc_t* fd, void * arg)
 {
+    //return fileArray[intSpot].file_size;
     return fd -> file_size;
 }
 
 int fs_getpos(file_desc_t* fd, void * arg)
 {
+    return fileArray[intSpot].file_pos;
     return fd -> file_pos;
 }
 
 int fs_setpos(file_desc_t* fd, void * arg)
 {
     fd -> file_pos = (uint64_t) arg;
+    return 0;
+    //fd -> file_pos = (uint64_t) arg;
     return (int) (fd -> file_pos);
     //Should this just return 0 or error code?
 }
 
 int fs_getblksz(file_desc_t* fd, void * arg)
 {
-    // Is block size just total number of blocks (N + D + 1)?
-    ioseek(globalIO, 4);
-    void * read_n = kmalloc(4);
+    ioseek(globalIO, blockNumSize);
+    void * read_n = kmalloc(blockNumSize);
     uint64_t n;
-    ioread(globalIO, read_n, 4);
+    ioread(globalIO, read_n, blockNumSize);
     n = (uint64_t) (read_n);
     kfree(read_n);
-    ioseek(globalIO, 8);
-    void * read_d = kmalloc(4);
+    ioseek(globalIO, fileStructSize);
+    void * read_d = kmalloc(blockNumSize);
     uint64_t d;
-    ioread(globalIO, read_d, 4);
+    ioread(globalIO, read_d, blockNumSize);
     d = (uint64_t)(read_d);
     kfree(read_d);
 

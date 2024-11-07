@@ -194,6 +194,7 @@
 //         ioclose(exeio);
 //     }
 // }
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //           main.c - Main function: runs shell to load executable
@@ -279,4 +280,65 @@ void main(void) {
 
     console_printf("elf return result: %d \n", result);
     console_printf("elf exe_entry: %lx \n", exe_entry);
+
+    // FS TESTING
+
+     kfree(lit);
+     kfree(blkio);
+     console_printf("hello \n");
+
+     struct io_lit * memory_io_fs = kmalloc(sizeof(struct  io_lit));
+
+//     // Initialize the io_lit object with the buffer
+
+     struct io_intf * io_fs;
+     io_fs = iolit_init(memory_io_fs, _companion_f_start, (size_t)(_companion_f_end - _companion_f_start));
+//     //io_fs -> ops -> read(io_fs, tempBug, 1);
+     int testMount;
+//     //fs_mount mounts the provided io_intf as a filesystem (if valid)
+     testMount = fs_mount(io_fs);
+     console_printf("testing fs_mount: %d \n", testMount);
+     struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf )); // add **?
+     int open_result = fs_open("hello", forOpen);
+     console_printf("testing fs_open: %d \n", open_result);
+
+    void * otherBuff = kmalloc(3);
+    otherBuff = "bob";
+    iowrite(*forOpen, otherBuff, 3);
+    console_printf("testing %d \n", ioctl(*forOpen, 3, NULL));
+
+    console_printf("testing get length: %d \n", ioctl(*forOpen, 1, NULL));
+    console_printf("testing get position: %d \n", ioctl(*forOpen, 3, NULL));
+    console_printf("testing set position: %d \n", ioctl(*forOpen, 4, 0));
+    console_printf("testing get position: %d \n", ioctl(*forOpen, 3, NULL));
+/*
+
+
+     void* tempBuff = kmalloc(39040);s
+//     //demonstrate file being read in entirety with fs_read
+    int testRead = ioread(*forOpen, tempBuff, 39040);
+    console_printf("test fs_read: %d \n", testRead);
+    console_printf("test buffer: %s \n", tempBuff);
+
+    console_printf("testing reading full file by position changing %d \n", ioctl(*forOpen, 3, NULL));
+
+    ioctl(*forOpen, 4, 0);
+
+    console_printf("testing%d \n", ioctl(*forOpen, 3, NULL));
+*/
+
+
+//     //struct io_lit * tempIO = kmalloc(sizeof(struct io_lit));
+//     //char * charTemp;
+//     //charTemp = kmalloc(1);
+//     //charTemp = "hello";
+//     //int open_result = fs_open(charTemp, io_fs);
+
+
+//     void* tempBuff = kmalloc(39040);
+//     //demonstrate file being read in entirety with fs_read
+//     //int testRead = io_fs -> ops -> read(io_fs, tempBuff, 39040);
+//     int testRead = ioread(*forOpen, tempBuff, 39040);
+//     console_printf("test fs_read: %d \n", testRead);
+//     //console_printf("test buffer: %s \n", tempBuff);
 }

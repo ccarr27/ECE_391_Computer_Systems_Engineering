@@ -72,7 +72,8 @@ debug-shell: shell.elf
 
 debug-test: test.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
+debug-elf: elf_test.elf;
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 # You might want to add more here
 
 run-test: test.elf
