@@ -76,50 +76,43 @@ void main(void) {
 
 
     io = iolit_init(lit, buffer, sizeof(buffer));
-
     console_printf("io init done \n");
+
+    //get length test
+    int io_length = io->ops->ctl(io, IOCTL_GETLEN, NULL);;
+    console_printf("get length of buff: %d\n", io_length);
 
     //get the curr position
     int curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-
     console_printf("curr pos: %d\n", curr_pos);
 
     //io write test
-    int yy = io->ops->write(io, &message, sizeof(int));
+    int write_test = io->ops->write(io, &message, sizeof(int));
+    console_printf("io write return: %d \n", write_test);
 
-    console_printf("io write done: %d \n", yy);
+    //get the curr position
+    curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
+    console_printf("curr pos after calling write: %d\n", curr_pos);
 
-    int recieve_buffer[128];
+    //now set the curr postion
+    size_t new_pos = 0;
+    int setpos_ret = io->ops->ctl(io, IOCTL_SETPOS, &new_pos);
+    console_printf("set positon return value: %d\n", setpos_ret);
 
+    //get the curr position
+    curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
+    console_printf("curr pos after setting it: %d\n", curr_pos);
+
+
+    //now in order to test write we can test read
+    int recieve_buffer[128];    //make a buffer to return to
     io->ops->read(io, recieve_buffer, sizeof(int));
-
-    // Print the first character in buffer to check if it was written correctly
-    console_printf("First character in buffer: %d\n", recieve_buffer[0]);
+    console_printf("First character in buffer: %d\n", recieve_buffer[0]); // Print the first character in buffer to check if it was written correctly
 
 
     //get the curr position
     curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-
     console_printf("curr pos: %d\n", curr_pos);
-    
-
-    // // Read the message into another buffer and print it
-    // char message_receive[128] = {0};
-    // io->ops->read(io, message_receive, strlen(message));
-    // console_printf("Received message: %s\n", message_receive);
-
-    // char * message_recieve;
-
-    // // //io read test
-    // io->ops->read(io, message_recieve, sizeof(*message));
-
-    // console_printf("this is the magic recieved number: %s\n", message_recieve);
-
-
-
-    // int curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-
-    // console_printf("curr pos: %d\n", curr_pos);
 
 
 }
