@@ -89,6 +89,14 @@ typedef struct {
 } Elf64_Phdr;
 
 
+/*
+Description: The point of this function it to have already set up an io interface and then use that to load a buffer
+from which we can read the contents of an elf file. Then it sets everything up in memory
+Purpose: this then can return the pointer to where to hand over control and have everything set up in memory
+inputs: io interface and function pointer
+outputs: int which is 0 if success or neg if error
+*/
+
 int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
     

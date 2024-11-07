@@ -78,12 +78,21 @@ long iowrite(struct io_intf * io, const void * buf, unsigned long n) {
 //           It should set up all fields within the io_lit struct so that I/O operations can be performed on the io_lit
 //           through the io_intf interface. This function should return a pointer to an io_intf object that can be used 
 //           to perform I/O operations on the device.
+
+/*
+description: sets up an iolit interface and connect the buffer and connect the iolit functions
+purpose: initializes the io_lit with a buiffer and connects the io_lit with the io_lit functions
+inputs: io_lit struct and buffer and buffer size
+outputs: returns the io_inf that is stored inside the io_lit we initialized
+*/
 struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
     lit -> pos = 0; //Not sure about this
 
     struct io_intf io;
+
+    //set the iolit functions to this iolit struct
 
     static const struct io_ops ops = {
 		.close = iolit_close,
@@ -256,58 +265,94 @@ char * ioterm_getsn(struct io_term * iot, char * buf, size_t n) {
 //           INTERNAL FUNCTION DEFINITIONS
 //
 
+/*
+Description: this functions can read data at whatever postions offset we are from into a buffer we pass in
+Purpose: used to read a location in memory after we seek. Will read from current postition until curr posititon + len
+Inputs: takes in an io interface, the buffer we read into,and the length we want to read
+Outputs: if success output 0 and the buffer should have the length we read
+*/
+
 long iolit_read(struct io_intf * io, void * buf, size_t len)
 {
     //io used to be io_lit
     // need to get io_lit from io
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
 
-    /* read from pos to size in buf*/
+    /* make sure the amount we are reading is within out range*/
     if(iol -> pos + len >= iol -> size)
     {
-        return -1;
+        return -1; //trying to read to much so return -2
     }
-    memcpy(buf, iol->buf + iol->pos, len); // HERE
-    iol -> pos += len;
-    return 0;
+    memcpy(buf, iol->buf + iol->pos, len); //this is where we read into the buf
+    iol -> pos += len; //after we read increase our position
+    return 0; //success
 }
+
+/*
+Description: We write to a position in memory whatever was stored in the buffer of length len
+Purpose: To write to memory
+Input: IO interface, buffer, length to write
+Output: return 0 if success and the place in memory should now have what was in the buf
+
+*/
 
 long iolit_write(struct io_intf * io, const void * buf, size_t len)
 {
+    //find the io_lit to ge the io_lit-> buf
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+
+    //check we don't go out of bounds
     if(iol -> pos + len >= iol -> size)
     {
-        return -1;
+        return -1; //if we go out of bounds return -1
+
     }
+    //copy
     memcpy(iol->buf + iol->pos, buf, len); // HERE
-    return 0;
+    return 0; //success
 }
+
+/*
+Description: Should do the opposite of init so just get the io_lit struct set everything to NULL or zero and pray
+Purpose: Stop reading or writing to the buffer
+Inputs: io struct
+Outputs: Nothing but function pointers should now be null
+*/
 
 void iolit_close(struct io_intf * io)
 {
-    // Not sure what to do here
 
     // Disable ability to read or write buffer
+
+    //get the io interface
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+
+    //pray, set everything to null, pray again
     iol->buf = NULL;
     iol->size = 0;
     iol->pos = 0;
     io->ops = NULL;
 }
 
-
+/*
+Description: allows for extra funtionality
+Purpose: allows for get len, get pos, set pos, getblksz
+Input: io, command, extra args
+Output: int that usually if success equals 0
+*/
 int iolit_ctl(struct io_intf * io, int cmd, void * arg)
 {
+    //get io_lit from io_intf
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
-    if(cmd == IOCTL_GETLEN)
+    if(cmd == IOCTL_GETLEN) //get length
     {
         return iol -> size;
     }
-    if(cmd == IOCTL_GETPOS)
+    if(cmd == IOCTL_GETPOS) //get pos
     {
         return iol -> pos;
     }
-    if(cmd == IOCTL_SETPOS)
+    if(cmd == IOCTL_SETPOS) //set pos also called seek
     {
         size_t new_pos = *(size_t *)arg;
         if (new_pos >= iol->size) {
