@@ -60,6 +60,10 @@ test.elf: $(CORE_OBJS) main_tests.o companion.o
 elf_test.elf: $(CORE_OBJS) elf_tests.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
+iotest.elf: $(CORE_OBJS) iolit_test.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+
 run-shell: shell.elf
 	$(QEMU) $(QEMUOPTS)
 
@@ -77,6 +81,8 @@ run-test: test.elf
 run-elf_test: elf_test.elf
 	$(QEMU) $(QEMUOPTS)
 
+run-iotest: iotest.elf
+	$(QEMU) $(QEMUOPTS)
 
 
 
