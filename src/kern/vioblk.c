@@ -306,31 +306,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     }
     memset(dev, 0, sizeof(struct vioblk_device));
 
-   
-
-    // Initialize descriptor ring
-    //struct virtq_desc *desc = dev->vq.desc;
-
     memset(&dev->vq.desc, 0, desc_size);
-
-    kprintf("flaggg\n");
-
-
-
-    // for (uint16_t i = 0; i < queue_size - 1; i++)
-    // {
-    //     if (virtio_featset_test(enabled_features, VIRTIO_F_INDIRECT_DESC))
-    //     {
-    //         desc[i].flags = VIRTQ_DESC_F_INDIRECT;
-    //     }
-    //     else {
-    //         desc[i].flags = VIRTQ_DESC_F_NEXT;
-    //     }
-    //     desc[i].next = &desc[i] + desc_size;
-    // }
-    // desc[queue_size - 1].next = 0;
-
-    kprintf("flaggggg2 \n");
 
     // Initialize avail ring
     memset((void*)&dev->vq.avail, 0, avail_size);
@@ -384,8 +360,7 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 
     dev->opened = 1;
     *ioptr = &dev->io_intf;
-    // virtio_enable_virtq(&dev->vq.avail, 0);
-    // virtio_enable_virtq(&dev->vq.used, 0);
+    virtio_enable_virtq(dev->regs, 0);
     return 0;
 }
 
