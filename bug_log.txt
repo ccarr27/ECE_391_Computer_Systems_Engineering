@@ -1,3 +1,10 @@
 Checkpoint 1
 
 # Include bug, associated files, and how it was fixed
+
+Carlos:
+1. I was trying to use iolitoctl to set the posititon by passing in an int but
+the whole time i needed to pass in a size_t.
+2.In the elf.c file I needed to make sure it was a riscv file and i didn't know how to. It ended up being 
+i just needed to check for the number 243
+3. When making tests i could not 
