@@ -443,21 +443,21 @@ long vioblk_read(
         uint16_t desc_idx[3];
 
         struct virtq_desc *desc0 = &dev->vq.desc[desc_idx[0]];
-        desc0->addr = virt_to_phys((void *)req_hdr);
+        //desc0->addr = virt_to_phys((void *)req_hdr);
         desc0->len = sizeof(struct vioblk_request_header);
         desc0->flags = VIRTQ_DESC_F_NEXT; // Device-readable
         desc0->next = desc_idx[1];
 
         // Descriptor 1: Data buffer (device-writable)
         struct virtq_desc *desc1 = &dev->vq.desc[desc_idx[1]];
-        desc1->addr = virt_to_phys((char *)dev->blkbuf);
+        //desc1->addr = virt_to_phys((char *)dev->blkbuf);
         desc1->len = dev->blksz;
         desc1->flags = VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE; // Device-writable
         desc1->next = desc_idx[2];
 
         // Descriptor 2: Status byte (device-writable)
         struct virtq_desc *desc2 = &dev->vq.desc[desc_idx[2]];
-        desc2->addr = virt_to_phys((void *)&dev->vq.req_status);
+        //desc2->addr = virt_to_phys((void *)&dev->vq.req_status);
         desc2->len = sizeof(uint8_t);
         desc2->flags = VIRTQ_DESC_F_WRITE; // Device-writable
         desc2->next = 0;
