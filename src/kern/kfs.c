@@ -75,21 +75,27 @@ int fs_getpos(file_desc_t* fd, void * arg);
 int fs_setpos(file_desc_t* fd, void * arg);
 int fs_getblksz(file_desc_t* fd, void * arg);
 
-//int fs_mount(struct io_intf* io)
+/*
+Description: mounts an io_intf to the filesystem provider so it is ready for fs_open
+Purpose: To prepare for io for fs_open
+Input: blkio - io_intf to be mounted
+Output: int that usually if success equals 0
+*/
 int fs_mount(struct io_intf * blkio)
 {
 
-    globalIO = blkio;
-    int err = blkio -> ops -> read(blkio, &boot, FS_BLKSZ);
-    // boot = io -> ops -> read(io, ) # Read something to get boot_block from virtio
-
-    // Look at virtio to see where to get setup info, then actually set it up
+    globalIO = blkio;                                           // Store the given io_intf
+    int err = blkio -> ops -> read(blkio, &boot, FS_BLKSZ);     // Read the boot block from the io_intf and store it in memory
     return err;
 } 
 
-// When traveling to specific inode, use io -> seek
 
-//int fs_open(const char* name, struct io_intf** io)
+/*
+Description: looks for a file with a given name, and if it finds it it sets up a file struct with the file and marks it in-use
+Purpose: To prepare a file struct and to initialize operations for it (fs_read, fs_write, etc.)
+Input: name - name of file, ioptr - double pointer to io_intf to be used for later fs operations
+Output: int that usually if success equals 0
+*/
 int fs_open(const char * name, struct io_intf ** ioptr)
 {
     int spot = -1;
@@ -97,6 +103,8 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     int tempPos = -1;
 
     int contTwo = 0;
+
+    // Iterate through the file struct to find a file with the given name
 
     for(int x = 0; x < numFiles; x++)
     {
@@ -107,6 +115,8 @@ int fs_open(const char * name, struct io_intf ** ioptr)
             tempIndex = boot.dir_entries[x].inode;
             tempPos = x;
             contTwo = 1;
+
+            // If we find a file with the given name, set the inode # and position
         }
         }
         else
@@ -116,11 +126,11 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     }
     if(tempPos == -1)
     {
-        return -1;
+        return -1;  // Return -1 if we don't find a file
     }
 
     int cont = 0;
-    for (int y = 0; y < FS_NAMELEN; y++)
+    for (int y = 0; y < FS_NAMELEN; y++)        // Find the first unused file struct and mark it as used
     {
     if(cont == 0)
     {
@@ -135,7 +145,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
         break;
     }
     }
-    int testVal = ioseek(globalIO, FS_BLKSZ + (tempIndex * FS_BLKSZ));
+    int testVal = ioseek(globalIO, FS_BLKSZ + (tempIndex * FS_BLKSZ));  // Get the length of the file
 
     
     if(testVal != 0)
@@ -146,7 +156,7 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     void * readSize = kmalloc(blockNumSize);
     uint64_t size;
 
-    int otherVal = globalIO -> ops -> read(globalIO, &readSize, blockNumSize);
+    int otherVal = globalIO -> ops -> read(globalIO, &readSize, blockNumSize); // Read the length of the file into the buffer
     if(otherVal != 0)
     {
         return -3;
@@ -155,11 +165,14 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     size = (uint64_t)(readSize);
     kfree(readSize);
 
+    // Set members of the specific file struct we are working with
+
     fileArray[spot].inode = tempIndex;
     fileArray[spot].file_pos = 0;
     
     fileArray[spot].file_size = size; // Should be equal to length given in inode block for particular inode
     fileArray[spot].flags = 1;
+    // Set operations for the io_intf (want to use the fs operations)
     static const struct io_ops newOps = {
         .close = fs_close,
         .read = fs_read,
@@ -173,35 +186,37 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     fileArray[spot].io_intf = newIO;
     intSpot = spot;
 
-    //struct io_intf * tempIO = &newIO;
-    //*ioptr = &tempIO;    // HERE!
+    //Set the value of the double pointer to point to the io_intf for the new file struct entry
     *ioptr = newIO;  
-
-   // If file name exists, checl that it isn't already open
-    // If both of these are true, set the file to 'in-use' and instantiate the rest of the file members
-    // Change io to io_intf that can be used with fs_read, fs_write, to read/write the specific file that was opened
-
-    // Kernel should find next file struct and set up metadata for the file
-
-    //struct file_desct_t * file();
-    //assign file metadata
-    //*io = io from file
-    // change boot block, add inode, directory entry, datablock for new file
-    // change the io within the file to let it read, write, etc.
 
     return 0;
 }
 
+/*
+Description: closes the file
+Purpose: sets the file struct to "not in use" and frees memory associated with the object
+Input: io - the io_intf for the file struct to close
+Output: None
+*/
+
 void fs_close(struct io_intf* io)
 {
     io -> ops = NULL;
-    kfree(io);
+    fileArray[intSpot].flags = 0;
+    kfree(io);  // Free the memory associated with the io_intf for the file struct and mark the file as closed
 }
+
+/*
+Description: Reads from the file into a buffer
+Purpose: Allows us to read a file, and changes the position to where we finished reading from
+Input: io - io_intf for file struct, buf - place we are reading to, n - number of bytes we are reading
+Output: long that usually if success equals 0
+*/
 
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
-    // Read from data blocks into buf
 
+    // Get the total number of innodes from the boot block
     ioseek(globalIO, blockNumSize);
     void * read_numInodes = kmalloc(blockNumSize);
     uint64_t numInodes;
@@ -210,18 +225,12 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     numInodes = (uint64_t) (read_numInodes);
 
     kfree(read_numInodes);
-    //void * read_numData;
-    //uint64_t numData;
-    //ioseek(globalIO, 8);
-    //ioread(globalIO, read_numData, 4);
-
-    //numData = (uint64_t) read_numData;
-    //ioseek(io, 24);
-    //console_printf("pos %d \n", io -> ops -> ctl(io, 3, NULL));
+    
+    //get the specific innode number
  
     uint64_t inode_num = fileArray[intSpot].inode;
 
-    //console_printf("inode %d \n", inode_num);
+
 
     int seek_two = ioseek(globalIO, FS_BLKSZ + (inode_num * FS_BLKSZ));
 
@@ -229,7 +238,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     {
         return -2;
     }
-
+    // Get the length of the file
     void * read_length_b = kmalloc(blockNumSize);
     uint64_t length_b;
     globalIO -> ops -> read(globalIO, &read_length_b, blockNumSize);
@@ -237,8 +246,10 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     ioseek(io, fileStructSize);
     kfree(read_length_b);
 
+    //Get the current position of the file
+
     uint64_t filePos = fileArray[intSpot].file_pos;
-    // If filePos + n is bigger than fileSize, do we return an error code, or read up until that spot
+    // If filePos + n is bigger than fileSize, we only read up to the end of the file
     unsigned long tempN;
     if(filePos + n > length_b)
     {
@@ -252,10 +263,13 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     while(tempN != 0)
     {
         int blockNum = filePos / FS_BLKSZ;
+        // Get the current data block by looking at the current position and innode #
         ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
         void * read_blockSpot = kmalloc(blockNumSize);
         ioread(globalIO, &read_blockSpot, blockNumSize);
         uint64_t blockSpot = (uint64_t) read_blockSpot;
+
+        // Move to the correct data block specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
 
@@ -263,7 +277,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // Move to correct block #
         int leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
 
-        if(leftInBlock <= tempN)
+        if(leftInBlock <= tempN) // If we should write the entire data block..
         {
         memcpy(buf, &globalIO, leftInBlock);
         tempN -= leftInBlock;
@@ -281,18 +295,20 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
 
     return 0;
 
-    // Use address of io_intf + however many bytes to get to inode #
-    // Go to address of boot block + however many bytes to get to specific inode #
-    // keep track of length of B
-    // Go to 0th data block # (or wherever based on current position)
-    // Keep reading data into buf (using memcopy?) until have done it n times
-    // If successful, return 1
 }
+
+/*
+Description: Writes from the buffer into a file
+Purpose: Allows us to write to a file, and changes the position to where we finished writing to
+Input: io - io_intf for file struct, buf - place we are writing from, n - number of bytes we are writing
+Output: long that usually if success equals 0
+*/
 
 long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 {
-    // Read from data blocks into buf
+    // Writes from buf into data blocks
 
+    //Get the total number of innodes
     ioseek(globalIO, blockNumSize);
     void * read_numInodes = kmalloc(blockNumSize);
     uint64_t numInodes;
@@ -301,18 +317,10 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     numInodes = (uint64_t) (read_numInodes);
 
     kfree(read_numInodes);
-    //void * read_numData;
-    //uint64_t numData;
-    //ioseek(globalIO, 8);
-    //ioread(globalIO, read_numData, 4);
 
-    //numData = (uint64_t) read_numData;
-    //ioseek(io, 24);
-    //console_printf("pos %d \n", io -> ops -> ctl(io, 3, NULL));
- 
+    // Get the current innode number
     uint64_t inode_num = fileArray[intSpot].inode;
 
-    //console_printf("inode %d \n", inode_num);
 
     int seek_two = ioseek(globalIO, FS_BLKSZ + (inode_num * FS_BLKSZ));
 
@@ -320,7 +328,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     {
         return -2;
     }
-
+    // Get the length of the file
     void * read_length_b = kmalloc(blockNumSize);
     uint64_t length_b;
     globalIO -> ops -> read(globalIO, &read_length_b, blockNumSize);
@@ -331,7 +339,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     uint64_t filePos = fileArray[intSpot].file_pos;
     // If filePos + n is bigger than fileSize, do we return an error code, or read up until that spot
     unsigned long tempN;
-    if(filePos + n > length_b)
+    if(filePos + n > length_b)  // Only write to the end of the file
     {
         tempN = length_b - filePos;
     }
@@ -343,10 +351,12 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     while(tempN != 0)
     {
         int blockNum = filePos / FS_BLKSZ;
+        // Move to the correct innode block
         ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
         void * read_blockSpot = kmalloc(blockNumSize);
         ioread(globalIO, &read_blockSpot, blockNumSize);
         uint64_t blockSpot = (uint64_t) read_blockSpot;
+        // Move to the correct data block number specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
 
@@ -354,7 +364,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         // Move to correct block #
         int leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
 
-        if(leftInBlock <= tempN)
+        if(leftInBlock <= tempN) // If we should write to the entire data block...
         {
         memcpy(globalIO, &buf, leftInBlock);
         tempN -= leftInBlock;
@@ -366,7 +376,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
             filePos += tempN;
             tempN = 0;
         }
-        // After finish read, update filePos
+        // After finish writing, update filePos
     }
     fileArray[intSpot].file_pos = filePos;
 
@@ -374,30 +384,44 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     
 }
 
+/*
+Description: Uses specific commands to call helper functions
+Purpose: Allows us to modify values within the file struct
+Input: io - io_intf for file struct, cmd - the command number, arg - the argument (if needed)
+Output: int that is the output of the helper function
+*/
+
 int fs_ioctl(struct io_intf* io, int cmd, void * arg)
 {
     // Get address of current fd
     struct file_desc_t * const fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
 
     file_desc_t fdOther = fileArray[intSpot];
-    if(cmd == IOCTL_GETLEN)
+    if(cmd == IOCTL_GETLEN) // Call get length
     {
         return fs_getlen(&fdOther, arg);
     }
-    if(cmd == IOCTL_GETPOS)
+    if(cmd == IOCTL_GETPOS) // Call get position
     {
         return fs_getpos(&fdOther, arg);
     }
-    if(cmd == IOCTL_SETPOS)
+    if(cmd == IOCTL_SETPOS) // Call set position
     {
         return fs_setpos(&fdOther, arg);
     }
-    if(cmd == IOCTL_GETBLKSZ)
+    if(cmd == IOCTL_GETBLKSZ)   // Call get block size
     {
         return fs_getblksz(fd, arg);
     }
     return 0;
 }
+
+/*
+Description: Gets length of file struct
+Purpose: Allows us to access the value from the file struct
+Input: fd - the file struct, arg - argument (not used)
+Output: length of file
+*/
 
 int fs_getlen(file_desc_t* fd, void * arg)
 {
@@ -405,20 +429,38 @@ int fs_getlen(file_desc_t* fd, void * arg)
     return fd -> file_size;
 }
 
+/*
+Description: Gets position of file struct
+Purpose: Allows us to access the value from the file struct
+Input: fd - the file struct, arg - argument (not used)
+Output: position of file
+*/
+
 int fs_getpos(file_desc_t* fd, void * arg)
 {
     return fileArray[intSpot].file_pos;
-    return fd -> file_pos;
 }
+
+/*
+Description: Sets position of file struct
+Purpose: Allows us to change the value from the file struct
+Input: fd - the file struct, arg - new file position
+Output: 0 if successful
+*/
 
 int fs_setpos(file_desc_t* fd, void * arg)
 {
     fd -> file_pos = (uint64_t) arg;
     return 0;
-    //fd -> file_pos = (uint64_t) arg;
-    return (int) (fd -> file_pos);
-    //Should this just return 0 or error code?
+
 }
+
+/*
+Description: Gets block size of file struct
+Purpose: Allows us to access the value from the file struct
+Input: fd - the file struct, arg - argument (not used)
+Output: block size of file
+*/
 
 int fs_getblksz(file_desc_t* fd, void * arg)
 {
