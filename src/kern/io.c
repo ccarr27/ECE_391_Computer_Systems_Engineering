@@ -319,6 +319,8 @@ long iolit_write(struct io_intf * io, const void * buf, size_t len)
     }
     //copy
     memcpy(iol->buf + iol->pos, buf, len); // HERE
+    int * tempVal = (int *) buf;
+    console_printf("buf value inside of write %d \n", *tempVal);
     iol -> pos += len; //after we write increase our position
     return len; //success
 }
@@ -357,10 +359,14 @@ int iolit_ctl(struct io_intf * io, int cmd, void * arg)
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
     if(cmd == IOCTL_GETLEN) //get length
     {
+        size_t * tempSize = (size_t *) arg;
+        *tempSize = iol -> size;
         return iol -> size;
     }
     if(cmd == IOCTL_GETPOS) //get pos
     {
+        size_t * tempSize = (size_t *) arg;
+        *tempSize = iol -> pos;
         return iol -> pos;
     }
     if(cmd == IOCTL_SETPOS) //set pos also called seek
@@ -379,6 +385,8 @@ int iolit_ctl(struct io_intf * io, int cmd, void * arg)
     }
     if(cmd == IOCTL_GETBLKSZ)
     {
+        size_t * tempSize = (size_t *) arg;
+        *tempSize = iol -> size;
         return iol -> size; //Block size
     }
     return -EINVAL;
