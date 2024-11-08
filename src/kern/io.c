@@ -371,15 +371,10 @@ int iolit_ctl(struct io_intf * io, int cmd, void * arg)
     }
     if(cmd == IOCTL_SETPOS) //set pos also called seek
     {
-        // console_printf("inside setpos \n");
-        // console_printf("inside setpos size: %d\n", iol->size);
         size_t new_pos = *(size_t *)arg;
-        // console_printf("inside setpos arg: %d\n", new_pos);
         if (new_pos >= iol->size) {
-            // console_printf("inside setpos still returning -1\n");
             return -EIO; // Out of bounds, return error
         }
-        // console_printf("inside setpos pos set\n");
         iol->pos = new_pos;
         return 0;
     }

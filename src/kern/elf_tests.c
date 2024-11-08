@@ -429,6 +429,7 @@ void main(void) {
     console_printf("elf return result: %d \n", result);
     console_printf("elf exe_entry: %lx \n", exe_entry);
     
+    
 
     // Testing kfs.c
 
@@ -473,16 +474,10 @@ void main(void) {
 
     console_printf("testing fs_mount on valid io: %d \n", testMount);
 
-    // Test fs_open with valid file
+
     console_printf("\n");
     console_printf("Testing fs_open \n");
     console_printf("\n");
-
-    struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf ));
-    int open_result = fs_open("hello", forOpen);
-    console_printf("testing fs_open: %d \n", open_result);
-    
-    /*
 
     // Test fs_open with invalid file (name that doesn't exist in filesystem)
 
@@ -491,7 +486,75 @@ void main(void) {
     console_printf("testing fs_open with invalid file: %d \n", invalidResult);
 
     kfree(invalidOpen);
+
+    // Test fs_open with valid file
+
+    struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf ));
+    int open_result = fs_open("hello", forOpen);
+    console_printf("testing fs_open with valid file ('hello'): %d \n", open_result);
+
+    console_printf("\n");
+    console_printf("Testing fs_ioctl \n");
+    console_printf("\n");
+
+    // Test get_length  
+    int getLength;
+    ioctl(*forOpen, IOCTL_GETLEN, &getLength);
+
+    console_printf("Length of file: %d \n", getLength);
+
+    // Test get_position
+    int getPosition;
+    ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
+
+    console_printf("Position of file: %d \n", getPosition);
+
+    // Test set_position
+    int setPosition = 20;
+    ioseek(*forOpen, setPosition);
+    ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
+
+    console_printf("Position of file after setting position: %d \n", getPosition);
+
+    // Set position back to 0 to read/write
+    setPosition = 0;
+    ioseek(*forOpen, setPosition);
+    ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
+    console_printf("Position of file after resetting position back to 0: %d \n", getPosition);
+
+    // Test get_blksz
+
+    int blockSize;
+    ioctl(*forOpen, IOCTL_GETBLKSZ, &blockSize);
+    console_printf("Block size of filesystem: %d \n", blockSize);
+
+    console_printf("\n");
+    console_printf("Testing fs_read \n");
+    console_printf("\n");
+
+    // Testing file read in entirety using fs_read
+    /*
+    void * tempBuff = kmalloc(getLength);
+    long validRead = ioread_full(*forOpen, tempBuff, getLength);
+
+    console_printf("Number of bytes read, should be equal to length: %d \n", validRead);
+    //Do something to look at values in the tempBuff - print whole thing?
+
+    // Set position back to 0 to be able to write from beginning
+
     */
+
+   // Add write test and then done.
+
+   // Show write to overwrite contents of file
+   //Print first five characters of file
+   //Write 'change' to first five spots - should return 5
+   //Print new five characters of file
+   //Print whole file
+
+    // Length of hello is 39040
+
+    
 
 
 //      struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf )); // add **?

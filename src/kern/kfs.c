@@ -49,7 +49,7 @@ typedef struct data_block_t{
 }__attribute((packed)) data_block_t;
 
 typedef struct file_desc_t{
-    struct io_intf * io_intf;
+    struct io_intf io_intf;
     uint64_t file_pos;
     uint64_t file_size;
     uint64_t inode;
@@ -84,6 +84,10 @@ Output: int that usually if success equals 0
 
 int fs_mount(struct io_intf * blkio)
 {
+    for(int x = 0; x < 32; x++)
+    {
+        memset(&fileArray[x], 0, sizeof(file_desc_t));
+    }
     globalIO = blkio;                                           // Store the given io_intf
     long err = ioread(blkio, &boot, FS_BLKSZ);                  // Read the boot block from the io_intf and store it in memory
     if(err == FS_BLKSZ)
@@ -105,7 +109,6 @@ Output: int that usually if success equals 0
 */
 int fs_open(const char * name, struct io_intf ** ioptr)
 {
-    console_printf("Name: %s \n", name);
     int spot;
     int tempIndex;
     int tempPos = -EINVAL;  // Initialize tempPos to negative value for case of not finding file
@@ -170,15 +173,12 @@ int fs_open(const char * name, struct io_intf ** ioptr)
         .write = fs_write,
         .ctl = fs_ioctl
     };
-    struct io_intf * newIO;
-    //newIO =
-    newIO = kmalloc(sizeof(struct io_intf));
-    newIO -> ops = &newOps;
-    fileArray[spot].io_intf = newIO;
+
+    fileArray[spot].io_intf.ops = &newOps;
     intSpot = spot;
 
     //Set the value of the double pointer to point to the io_intf for the new file struct entry
-    *ioptr = newIO;  
+    *ioptr = &fileArray[spot].io_intf;  
 
     return 0;
 }
@@ -387,18 +387,17 @@ int fs_ioctl(struct io_intf* io, int cmd, void * arg)
     // Get address of current fd
     struct file_desc_t * const fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
 
-    file_desc_t fdOther = fileArray[intSpot];
     if(cmd == IOCTL_GETLEN) // Call get length
     {
-        return fs_getlen(&fdOther, arg);
+        return fs_getlen(fd, arg);
     }
     if(cmd == IOCTL_GETPOS) // Call get position
     {
-        return fs_getpos(&fdOther, arg);
+        return fs_getpos(fd, arg);
     }
     if(cmd == IOCTL_SETPOS) // Call set position
     {
-        return fs_setpos(&fdOther, arg);
+        return fs_setpos(fd, arg);
     }
     if(cmd == IOCTL_GETBLKSZ)   // Call get block size
     {
@@ -416,7 +415,8 @@ Output: length of file
 
 int fs_getlen(file_desc_t* fd, void * arg)
 {
-    //return fileArray[intSpot].file_size;
+    size_t * tempSize = (size_t *) arg;
+    *tempSize = fd -> file_size;
     return fd -> file_size;
 }
 
@@ -429,7 +429,9 @@ Output: position of file
 
 int fs_getpos(file_desc_t* fd, void * arg)
 {
-    return fileArray[intSpot].file_pos;
+    size_t * tempSize = (size_t *) arg;
+    *tempSize = fd -> file_pos;
+    return fd -> file_pos;
 }
 
 /*
@@ -441,7 +443,11 @@ Output: 0 if successful
 
 int fs_setpos(file_desc_t* fd, void * arg)
 {
-    fd -> file_pos = (uint64_t) arg;
+    size_t new_pos = *(size_t *)arg;
+        if (new_pos >= fd->file_size) {
+            return -EIO; // Out of bounds, return error
+        }
+    fd -> file_pos = new_pos;
     return 0;
 
 }
@@ -455,6 +461,8 @@ Output: block size of file
 
 int fs_getblksz(file_desc_t* fd, void * arg)
 {
+    //Should just return 4096, constant
+    // NEED TO CHANGE
     ioseek(globalIO, blockNumSize);
     void * read_n = kmalloc(blockNumSize);
     uint64_t n;
@@ -467,6 +475,9 @@ int fs_getblksz(file_desc_t* fd, void * arg)
     ioread(globalIO, read_d, blockNumSize);
     d = (uint64_t)(read_d);
     kfree(read_d);
+
+    size_t * tempSize = (size_t *) arg;
+    *tempSize = n + d + 1;
 
     return n + d + 1; //Gets block size of file?
 }
