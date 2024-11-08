@@ -81,12 +81,19 @@ Purpose: To prepare for io for fs_open
 Input: blkio - io_intf to be mounted
 Output: int that usually if success equals 0
 */
+
 int fs_mount(struct io_intf * blkio)
 {
-
     globalIO = blkio;                                           // Store the given io_intf
-    int err = blkio -> ops -> read(blkio, &boot, FS_BLKSZ);     // Read the boot block from the io_intf and store it in memory
-    return err;
+    long err = ioread(blkio, &boot, FS_BLKSZ);                  // Read the boot block from the io_intf and store it in memory
+    if(err == FS_BLKSZ)
+    {
+        return 0;
+    }
+    else
+    {
+        return -EIO;
+    }
 } 
 
 
@@ -98,68 +105,52 @@ Output: int that usually if success equals 0
 */
 int fs_open(const char * name, struct io_intf ** ioptr)
 {
-    int spot = -1;
-    int tempIndex = -1;
-    int tempPos = -1;
-
-    int contTwo = 0;
+    console_printf("Name: %s \n", name);
+    int spot;
+    int tempIndex;
+    int tempPos = -EINVAL;  // Initialize tempPos to negative value for case of not finding file
 
     // Iterate through the file struct to find a file with the given name
 
     for(int x = 0; x < numFiles; x++)
     {
-        if(contTwo == 0)
-        {
-        if(strcmp(name, boot.dir_entries[x].file_name) == 0)
-        {
-            tempIndex = boot.dir_entries[x].inode;
+        if(strcmp(name, boot.dir_entries[x].file_name) == 0)    // If we find a file with the given name, set the inode # and position
+        {   
+            tempIndex = boot.dir_entries[x].inode;  
             tempPos = x;
-            contTwo = 1;
-
-            // If we find a file with the given name, set the inode # and position
-        }
-        }
-        else
-        {
-            break;
+            x = numFiles;       // Stop loop after reaching first file with given name
         }
     }
-    if(tempPos == -1)
+
+    if(tempPos < 0)
     {
-        return -1;  // Return -1 if we don't find a file
+        return -EINVAL;         // Return -1 if no file with name found
     }
 
-    int cont = 0;
     for (int y = 0; y < FS_NAMELEN; y++)        // Find the first unused file struct and mark it as used
     {
-    if(cont == 0)
-    {
-        if(fileArray[y].flags == 0)
-            {
-                cont = 1;
-                spot = y;
-            }
+    if(fileArray[y].flags == 0)
+        {
+            spot = y;
+            y = FS_NAMELEN;
         }
-    else
-    {
-        break;
     }
-    }
-    int testVal = ioseek(globalIO, FS_BLKSZ + (tempIndex * FS_BLKSZ));  // Get the length of the file
 
+    int testVal = ioseek(globalIO, FS_BLKSZ + (tempIndex * FS_BLKSZ));  // Get the length of the file
     
     if(testVal != 0)
     {
-        return -2;
+        return -EBUSY;
     }
 
     void * readSize = kmalloc(blockNumSize);
     uint64_t size;
 
-    int otherVal = globalIO -> ops -> read(globalIO, &readSize, blockNumSize); // Read the length of the file into the buffer
-    if(otherVal != 0)
+    long otherVal = globalIO -> ops -> read(globalIO, &readSize, blockNumSize); // Read the length of the file into the buffer
+
+    if(otherVal != blockNumSize)
     {
-        return -3;
+        return -EBADFMT;
     }
 
     size = (uint64_t)(readSize);

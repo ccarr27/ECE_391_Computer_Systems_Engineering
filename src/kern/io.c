@@ -269,48 +269,58 @@ char * ioterm_getsn(struct io_term * iot, char * buf, size_t n) {
 Description: this functions can read data at whatever postions offset we are from into a buffer we pass in
 Purpose: used to read a location in memory after we seek. Will read from current postition until curr posititon + len
 Inputs: takes in an io interface, the buffer we read into,and the length we want to read
-Outputs: if success output 0 and the buffer should have the length we read
+Outputs: if success output number of bytes read and the buffer should have the length we read
 */
 
 long iolit_read(struct io_intf * io, void * buf, size_t len)
 {
-    //io used to be io_lit
+    // io used to be io_lit
     // need to get io_lit from io
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+ 
+    if(iol -> pos > iol -> size)
+    {
+        return -EIO;        // If somehow at wrong position in memory, return error
+    }
 
-    /* make sure the amount we are reading is within out range*/
+    /* make sure the amount we are reading is within our range*/
     if(iol -> pos + len >= iol -> size)
     {
-        return -1; //trying to read to much so return -2
+        len = iol -> size - iol -> pos;     // If we are trying to read too much, only read up to end of file
     }
     memcpy(buf, iol->buf + iol->pos, len); //this is where we read into the buf
     iol -> pos += len; //after we read increase our position
-    return 0; //success
+    return len; //success
 }
 
 /*
 Description: We write to a position in memory whatever was stored in the buffer of length len
 Purpose: To write to memory
 Input: IO interface, buffer, length to write
-Output: return 0 if success and the place in memory should now have what was in the buf
+Output: return number of bytes read if success and the place in memory should now have what was in the buf
 
 */
 
 long iolit_write(struct io_intf * io, const void * buf, size_t len)
 {
+    
     //find the io_lit to ge the io_lit-> buf
     struct io_lit * const iol = (void*)io - offsetof(struct io_lit, io_intf);
+
+    if(iol -> pos > iol -> size)
+    {
+        return -EIO;        // If somehow at wrong position in memory, return error
+    }
 
     //check we don't go out of bounds
     if(iol -> pos + len >= iol -> size)
     {
-        return -1; //if we go out of bounds return -1
-
+        len = iol -> size - iol -> pos;     // If we are trying to write too much, only write up to end of file
     }
     //copy
     memcpy(iol->buf + iol->pos, buf, len); // HERE
     iol -> pos += len; //after we write increase our position
-    return 0; //success
+    return len; //success
 }
 
 /*
@@ -339,7 +349,7 @@ void iolit_close(struct io_intf * io)
 Description: allows for extra funtionality
 Purpose: allows for get len, get pos, set pos, getblksz
 Input: io, command, extra args
-Output: int that usually if success equals 0
+Output: int that usually if success equals specified value
 */
 int iolit_ctl(struct io_intf * io, int cmd, void * arg)
 {
@@ -361,17 +371,17 @@ int iolit_ctl(struct io_intf * io, int cmd, void * arg)
         // console_printf("inside setpos arg: %d\n", new_pos);
         if (new_pos >= iol->size) {
             // console_printf("inside setpos still returning -1\n");
-            return -1; // Out of bounds, return error
+            return -EIO; // Out of bounds, return error
         }
         // console_printf("inside setpos pos set\n");
         iol->pos = new_pos;
-        return 0; // Return 0 to indicate success
+        return 0;
     }
     if(cmd == IOCTL_GETBLKSZ)
     {
         return iol -> size; //Block size
     }
-    return -1;
+    return -EINVAL;
 }
 
 void ioterm_close(struct io_intf * io) {

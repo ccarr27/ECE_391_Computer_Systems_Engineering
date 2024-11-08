@@ -428,4 +428,80 @@ void main(void) {
 
     console_printf("elf return result: %d \n", result);
     console_printf("elf exe_entry: %lx \n", exe_entry);
+    
+
+    // Testing kfs.c
+
+    console_printf("\n");
+    console_printf("Testing kfs.c");
+    console_printf("\n");
+
+    // Initialize io_lit object to use for testing the file system
+
+    struct io_lit * memory_io_fs = kmalloc(sizeof(struct  io_lit));                 
+    struct io_intf * io_fs;
+    io_fs = iolit_init(memory_io_fs, _companion_f_start, (size_t)(_companion_f_end - _companion_f_start));
+
+    // Test fs_mount on valid io_intf
+    console_printf("\n");
+    console_printf("Testing fs_mount \n");
+    console_printf("\n");
+
+    //Test fs_mount on invalid io_intf
+
+    struct io_lit * null_io_fs = kmalloc(sizeof(struct  io_lit));                 
+    struct io_intf * io_null;
+    void * nullBuf = kmalloc(1);
+    nullBuf = " ";
+    io_null = iolit_init(null_io_fs, nullBuf, 1);
+
+    int testMount2;
+    testMount2 = fs_mount(io_null);
+
+    // Error code for invalid io_intf
+
+    console_printf("testing fs_mount on invalid io: %d \n", testMount2);
+
+    kfree(nullBuf);
+    kfree(io_null);
+    kfree(null_io_fs);
+
+    int testMount;
+    testMount = fs_mount(io_fs);
+ 
+    // fs_mount returns 0 if the mount is successful
+
+    console_printf("testing fs_mount on valid io: %d \n", testMount);
+
+    // Test fs_open with valid file
+    console_printf("\n");
+    console_printf("Testing fs_open \n");
+    console_printf("\n");
+
+    struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf ));
+    int open_result = fs_open("hello", forOpen);
+    console_printf("testing fs_open: %d \n", open_result);
+    
+    /*
+
+    // Test fs_open with invalid file (name that doesn't exist in filesystem)
+
+    struct io_intf ** invalidOpen = kmalloc(sizeof(struct io_intf ));
+    int invalidResult = fs_open("random", invalidOpen);
+    console_printf("testing fs_open with invalid file: %d \n", invalidResult);
+
+    kfree(invalidOpen);
+    */
+
+
+//      struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf )); // add **?
+//      int open_result = fs_open("hello", forOpen);
+//      console_printf("testing fs_open: %d \n", open_result);
+
+//     void * otherBuff = kmalloc(3);
+//     otherBuff = "bob";
+//     iowrite(*forOpen, otherBuff, 3);
+//     console_printf("testing io result %d \n", ioctl(*forOpen, 3, NULL));
+
+
 }
