@@ -230,30 +230,6 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     debug("%p: virtio block device block size is %lu", regs, (long)blksz);
 
-    //uint32_t max_discard_sectors;
-    //uint32_t max_discard_seg;
-    //uint32_t max_write_zeros_sector;
-    //uint32_t max_write_zeros_seg;
-    uint16_t num_queues;
-
-    // if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_DISCARD))
-    // {
-    //     max_discard_sectors = regs->config.blk.max_discard_sectors;
-    //     max_discard_seg = regs->config.blk.max_discard_seg;
-    // }
-
-    // if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_WRITE_ZEROES))
-    // {
-    //     max_write_zeros_sector = regs->config.blk.max_write_zeroes_sectors;
-    //     max_write_zeros_seg = regs->config.blk.max_write_zeroes_seg;
-    // }
-
-    // set num_queues from the VIRTIO_BLK_F_MQ
-    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_MQ))
-    {
-        num_queues = regs->config.blk.num_queues;
-    }
-
     // Allocate initialize device struct
 
     dev = kmalloc(sizeof(struct vioblk_device) + blksz);
@@ -270,8 +246,6 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     dev->blksz = blksz;
     dev->size = size_in_bytes;
     dev->blkcnt = capacity;
-    // If VIRTIO_BLK_F_RO feture negotiated then set readonly
-    dev->readonly = virtio_featset_test(enabled_features, VIRTIO_BLK_F_RO);
     dev->opened = 0;
     dev->pos = 0;
     // Allocate memory for block buffer 
@@ -289,12 +263,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     // Get the maximum queue size
     uint32_t queue_num_max = regs->queue_num_max;
 
-    uint16_t queue_size = num_queues;
-    regs->queue_num = queue_size;
-
-    size_t desc_size = 16 * queue_size;
-    size_t avail_size = 6 + 2 * queue_size;
-    size_t used_size = 6 + 8 * queue_size;
+    uint16_t queue_size = 1;
+    regs->queue_num = 1;
     //size_t vq_total_size = desc_size + avail_size + used_size;
 
     // Allocate memory for the virtqueue
@@ -307,18 +277,20 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
         kprintf("Failed to allocate memory for vioblk_device\n");
         return;
     }
-    // Reset memory for device 
-    memset(dev, 0, sizeof(struct vioblk_device));
+    dev -> vq.desc[0].next = 0;
 
-    // Initialize descriptor 
-    memset(&dev->vq.desc, 0, desc_size);
 
-    // Initialize avail ring
-    memset((void*)&dev->vq.avail, 0, avail_size);
+    dev -> vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
+    dev -> vq.desc[1].next = 1;
+
+
+    dev -> vq.desc[2].next = 2;
+
+    dev->vq.avail.flags = 0;
     dev->vq.avail.idx = 0;
 
     //Initialize used ring
-    memset((void*)&dev->vq.used, 0, used_size);
+    dev->vq.used.flags = 0;
     dev->vq.used.idx = 0;
 
     // Attach the virtqueue to the device
@@ -339,12 +311,12 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     // Enable the virtqueue
     virtio_enable_virtq(regs, 0);
 
-    // Initialize thread condition
+    // Initialize thread condition   kprintf("%d \n",num_queues);
     condition_init(&dev->vq.used_updated, *(&dev->vq.used_updated.name));
 
     // Register the ISR
     intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
-
+dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
     // Register device 
     device_register("blk", &vioblk_open, dev);
 
@@ -428,6 +400,33 @@ long vioblk_read(
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
 
+        dev->vq.desc[0].addr = &dev->vq.desc[1];
+        dev->vq.desc[0].len = 16*3;
+        if (virtio_check_feature(dev->regs, VIRTIO_F_INDIRECT_DESC)){
+                dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+        }
+        dev->vq.desc[0].next = 0;
+
+        //header
+        dev->vq.desc[1].addr = &dev->vq.req_header;
+        dev->vq.desc[1].len = sizeof(dev->vq.req_header); //not sure about this
+        dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
+        dev->vq.desc[1].next = 1;
+        
+        //data
+        dev->vq.desc[2].addr = &dev->blkbuf;
+        dev->vq.desc[2].len = dev->blksz;
+        dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
+        dev->vq.desc[2].next = 2;
+
+        dev->vq.desc[3].addr = &dev->vq.req_status; // status 
+        dev->vq.desc[3].len = 1;
+        dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+
+
+        
+
+
         // Prepare descriptors
 
         // Add descriptor index to avail ring
@@ -461,18 +460,22 @@ long vioblk_read(
         // uint16_t avail_idx = dev->vq.avail.idx % VIRTQ_AVAIL_SIZE(1);
         // dev->vq.avail.ring[avail_idx] = desc_idx[0];
 
+        dev->vq.avail.flags = 0;
+        dev->vq.avail.idx = 1;
+        dev->vq.avail.ring[0] = 0;
+
         __sync_synchronize();
         dev->vq.avail.idx++;
         __sync_synchronize();
 
         dev->regs->queue_notify = 0;
 
-        intr_disable();
-        while (dev->vq.req_status == 0xff)
-        {
-            condition_wait(&dev->vq.used_updated);
-        }
-        intr_enable();
+        // intr_disable();
+        // while (dev->vq.req_status == 0xff)
+        // {
+        //     condition_wait(&dev->vq.used_updated);
+        // }
+        // intr_enable();
 
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
@@ -526,7 +529,7 @@ long vioblk_write(
         }
 
         // If not a full block, read existing data first
-        if (sector_offset != 0 || to_write != dev->blksz)
+        if (sector_offset != 0 || to_write != dev->blksz) // Donno what to do here 
         {
             // Prepare read request to fill blkbuf
         }
@@ -538,6 +541,33 @@ long vioblk_write(
         dev->vq.req_header.type = VIRTIO_BLK_T_OUT;
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
+
+        dev->vq.desc[0].addr = &dev->vq.desc[1];
+        dev->vq.desc[0].len = 16*3;
+        if (virtio_check_feature(dev->regs, VIRTIO_F_INDIRECT_DESC)){
+                dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+        }
+        dev->vq.desc[0].next = 0;
+
+        //header
+        dev->vq.desc[1].addr = &dev->vq.req_header;
+        dev->vq.desc[1].len = sizeof(dev->vq.req_header); //not sure about this
+        dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
+        dev->vq.desc[1].next = 1;
+        
+        //data
+        dev->vq.desc[2].addr = &dev->blkbuf;
+        dev->vq.desc[2].len = dev->blksz;
+        dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT;
+        dev->vq.desc[2].next = 2;
+
+        dev->vq.desc[3].addr = &dev->vq.req_status; // status 
+        dev->vq.desc[3].len = 1;
+        dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+
+        dev->vq.avail.idx = 1;
+        dev->vq.avail.ring[0] = 0;
+        
 
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
