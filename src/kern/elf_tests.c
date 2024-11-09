@@ -533,8 +533,9 @@ void main(void) {
     console_printf("\n");
 
     // Testing file read in entirety using fs_read
-    /*
-    void * tempBuff = kmalloc(getLength);
+    ioctl(*forOpen, IOCTL_GETLEN, &getLength);
+    char tempBuff[getLength];
+    
     long validRead = ioread_full(*forOpen, tempBuff, getLength);
 
     console_printf("Number of bytes read, should be equal to length: %d \n", validRead);
@@ -542,7 +543,7 @@ void main(void) {
 
     // Set position back to 0 to be able to write from beginning
 
-    */
+    
 
    // Add write test and then done.
 

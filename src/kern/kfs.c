@@ -206,6 +206,7 @@ Output: long that usually if success equals 0
 
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
+    struct file_desc_t * const fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
 
     // Get the total number of innodes from the boot block
     ioseek(globalIO, blockNumSize);
@@ -219,7 +220,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     
     //get the specific innode number
  
-    uint64_t inode_num = fileArray[intSpot].inode;
+    uint64_t inode_num = fd -> inode;
 
 
 
@@ -234,12 +235,12 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     uint64_t length_b;
     globalIO -> ops -> read(globalIO, &read_length_b, blockNumSize);
     length_b = (uint64_t) read_length_b;
-    ioseek(io, fileStructSize);
+
     kfree(read_length_b);
 
     //Get the current position of the file
 
-    uint64_t filePos = fileArray[intSpot].file_pos;
+    uint64_t filePos = fd -> file_pos;
     // If filePos + n is bigger than fileSize, we only read up to the end of the file
     unsigned long tempN;
     if(filePos + n > length_b)
@@ -253,6 +254,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
 
     while(tempN != 0)
     {
+        console_printf("n %d \n", tempN);
         int blockNum = filePos / FS_BLKSZ;
         // Get the current data block by looking at the current position and innode #
         ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
@@ -263,28 +265,29 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // Move to the correct data block specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
-
-
+        
         // Move to correct block #
         int leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
 
         if(leftInBlock <= tempN) // If we should write the entire data block..
         {
-        memcpy(buf, &globalIO, leftInBlock);
+        memcpy(buf, globalIO, (size_t) leftInBlock);
         tempN -= leftInBlock;
         filePos += leftInBlock;
         }
         else
         {
-            memcpy(buf, &globalIO, tempN);
+            memcpy(buf, globalIO, (size_t) tempN);
             filePos += tempN;
             tempN = 0;
         }
         // After finish read, update filePos
     }
-    fileArray[intSpot].file_pos = filePos;
+    
+    long numRead = filePos - fd -> file_pos;
+    fd -> file_pos = filePos;
 
-    return 0;
+    return numRead;
 
 }
 
@@ -463,22 +466,9 @@ int fs_getblksz(file_desc_t* fd, void * arg)
 {
     //Should just return 4096, constant
     // NEED TO CHANGE
-    ioseek(globalIO, blockNumSize);
-    void * read_n = kmalloc(blockNumSize);
-    uint64_t n;
-    ioread(globalIO, read_n, blockNumSize);
-    n = (uint64_t) (read_n);
-    kfree(read_n);
-    ioseek(globalIO, fileStructSize);
-    void * read_d = kmalloc(blockNumSize);
-    uint64_t d;
-    ioread(globalIO, read_d, blockNumSize);
-    d = (uint64_t)(read_d);
-    kfree(read_d);
-
     size_t * tempSize = (size_t *) arg;
-    *tempSize = n + d + 1;
+    *tempSize = FS_BLKSZ;
 
-    return n + d + 1; //Gets block size of file?
+    return FS_BLKSZ; //Gets block size of file?
 }
 
