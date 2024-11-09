@@ -201,16 +201,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     virtio_featset_init(wanted_features);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_BLK_SIZE);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_TOPOLOGY);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_DISCARD);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_WRITE_ZEROES);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_MQ);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_RO);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_CONFIG_WCE);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_FLUSH);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_GEOMETRY);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_SEG_MAX);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_SIZE_MAX);
-
+    
     result = virtio_negotiate_features(regs,
                                        enabled_features, wanted_features, needed_features);
 
@@ -233,7 +224,6 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     // Allocate initialize device struct
 
     dev = kmalloc(sizeof(struct vioblk_device) + blksz);
-    memset(dev, 0, sizeof(struct vioblk_device));
 
     //            FIXME Finish initialization of vioblk device here
 
@@ -277,21 +267,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
         kprintf("Failed to allocate memory for vioblk_device\n");
         return;
     }
-    dev -> vq.desc[0].next = 0;
-
-
-    dev -> vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
-    dev -> vq.desc[1].next = 1;
-
-
-    dev -> vq.desc[2].next = 2;
-
-    dev->vq.avail.flags = 0;
-    dev->vq.avail.idx = 0;
-
-    //Initialize used ring
-    dev->vq.used.flags = 0;
-    dev->vq.used.idx = 0;
+    
 
     // Attach the virtqueue to the device
     kprintf("flag3 \n");
@@ -308,15 +284,28 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     );
     kprintf("finished int VirtQ\n");
 
-    // Enable the virtqueue
-    virtio_enable_virtq(regs, 0);
+    dev -> vq.desc[0].addr = &dev->vq.desc[1];
+    dev -> vq.desc[0].next = 0;
+
+
+    dev -> vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
+    dev -> vq.desc[1].next = 1;
+
+
+    dev -> vq.desc[2].next = 2;
+
+    dev->vq.avail.flags = 0;
+    dev->vq.avail.idx = 0;
+
+    //Initialize used ring
+    dev->vq.used.flags = 0;
+    dev->vq.used.idx = 0;
 
     // Initialize thread condition   kprintf("%d \n",num_queues);
     condition_init(&dev->vq.used_updated, *(&dev->vq.used_updated.name));
 
     // Register the ISR
     intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
-dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
     // Register device 
     device_register("blk", &vioblk_open, dev);
 
@@ -337,6 +326,7 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 {
     //            FIXME your code here
     struct vioblk_device *dev = (struct vioblk_device *)aux;
+    virtio_enable_virtq(dev->regs, 0);
 
     if (dev->opened)
     {
@@ -383,6 +373,7 @@ long vioblk_read(
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
     while (total_read < bufsz)
     {
+        kprintf("read op num %d \n", total_read);
         // Calculate current sector and offset
         sector = dev->pos / dev->blksz;
         sector_offset = dev->pos % dev->blksz;
@@ -419,6 +410,7 @@ long vioblk_read(
         dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
         dev->vq.desc[2].next = 2;
 
+        //status
         dev->vq.desc[3].addr = &dev->vq.req_status; // status 
         dev->vq.desc[3].len = 1;
         dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
