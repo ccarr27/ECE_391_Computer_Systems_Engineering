@@ -222,13 +222,12 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
  
     uint64_t inode_num = fd -> inode;
 
-
-
     int seek_two = ioseek(globalIO, FS_BLKSZ + (inode_num * FS_BLKSZ));
+
 
     if(seek_two != 0)
     {
-        return -2;
+        return -EBADFMT;
     }
     // Get the length of the file
     void * read_length_b = kmalloc(blockNumSize);
@@ -241,6 +240,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     //Get the current position of the file
 
     uint64_t filePos = fd -> file_pos;
+
     // If filePos + n is bigger than fileSize, we only read up to the end of the file
     unsigned long tempN;
     if(filePos + n > length_b)
@@ -252,9 +252,10 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         tempN = n;
     }
 
+    return 100;
     while(tempN != 0)
     {
-        console_printf("n %d \n", tempN);
+        console_printf("here %d \n", tempN);
         int blockNum = filePos / FS_BLKSZ;
         // Get the current data block by looking at the current position and innode #
         ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
