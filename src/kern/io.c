@@ -43,7 +43,7 @@ long ioread_full(struct io_intf * io, void * buf, unsigned long bufsz) {
 
     if (io->ops->read == NULL)
         return -ENOTSUP;
-
+    
     while (acc < bufsz) {
         cnt = io->ops->read(io, buf+acc, bufsz-acc);
         if (cnt < 0)
