@@ -158,6 +158,20 @@ static const struct io_ops vioblk_ops = {
     .ctl = vioblk_ioctl};
 
 
+// Function: vioblk_attach
+// Input: struct virtio_mmio_regs *regs, int irqno 
+// Ouput: None 
+// Description: Initialize virtio block device with the necessary IO operation
+// fills out the descriptors in the virtq struct and attach the virtq_avail 
+// and the virtq_used. Finally call the vioblk isr and register the device. 
+
+// Function: vioblk_attach
+// Input: struct virtio_mmio_regs *regs, int irqno 
+// Ouput: None 
+// Description: Initialize virtio block device with the necessary IO operation
+// fills out the descriptors in the virtq struct and attach the virtq_avail 
+// and the virtq_used. Finally call the vioblk isr and register the device. 
+
 /*
 Description: this function initializes virt io block
 Purpose: fills out descriptors and sets everything up
@@ -188,6 +202,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     //             - VIRTIO_BLK_F_BLK_SIZE and
     //             - VIRTIO_BLK_F_TOPOLOGY.
 
+    // Initialize the neccesary feature for the virtio
+    // (Some features were not used but I initialized them anyway)
     virtio_featset_init(needed_features);
     virtio_featset_add(needed_features, VIRTIO_F_RING_RESET);
     virtio_featset_add(needed_features, VIRTIO_F_INDIRECT_DESC);
@@ -197,16 +213,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     virtio_featset_init(wanted_features);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_BLK_SIZE);
     virtio_featset_add(wanted_features, VIRTIO_BLK_F_TOPOLOGY);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_DISCARD);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_WRITE_ZEROES);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_MQ);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_RO);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_CONFIG_WCE);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_FLUSH);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_GEOMETRY);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_SEG_MAX);
-    virtio_featset_add(wanted_features, VIRTIO_BLK_F_SIZE_MAX);
-
+    
     result = virtio_negotiate_features(regs,
                                        enabled_features, wanted_features, needed_features);
 
@@ -226,53 +233,26 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     debug("%p: virtio block device block size is %lu", regs, (long)blksz);
 
-    //uint32_t max_discard_sectors;
-    //uint32_t max_discard_seg;
-    //uint32_t max_write_zeros_sector;
-    //uint32_t max_write_zeros_seg;
-    uint16_t num_queues;
-
-    // if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_DISCARD))
-    // {
-    //     max_discard_sectors = regs->config.blk.max_discard_sectors;
-    //     max_discard_seg = regs->config.blk.max_discard_seg;
-    // }
-
-    // if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_WRITE_ZEROES))
-    // {
-    //     max_write_zeros_sector = regs->config.blk.max_write_zeroes_sectors;
-    //     max_write_zeros_seg = regs->config.blk.max_write_zeroes_seg;
-    // }
-
-    if (virtio_featset_test(enabled_features, VIRTIO_BLK_F_MQ))
-    {
-        num_queues = regs->config.blk.num_queues;
-    }
-
-    //            Allocate initialize device struct
+    // Allocate initialize device struct
 
     dev = kmalloc(sizeof(struct vioblk_device) + blksz);
-    memset(dev, 0, sizeof(struct vioblk_device));
 
     //            FIXME Finish initialization of vioblk device here
 
-    uint64_t capacity = regs->config.blk.capacity;
-    uint64_t size_in_bytes = capacity * 512ULL;
+    // Initilze the device and its variables 
+    uint64_t capacity = regs->config.blk.capacity; // capacity from config 
+    uint64_t size_in_bytes = capacity * 512ULL; // 512 bytes per block
+    // set the rest of the neccesary field 
     dev->regs = regs;
     dev->irqno = irqno;
     dev->blksz = blksz;
     dev->size = size_in_bytes;
     dev->blkcnt = capacity;
-    dev->readonly = virtio_featset_test(enabled_features, VIRTIO_BLK_F_RO);
     dev->opened = 0;
     dev->pos = 0;
+    // Allocate memory for block buffer 
     dev->blkbuf = kmalloc(blksz);
-    if (!dev->blkbuf)
-    {
-        kprintf("Failed to allocate memory for block buffer\n");
-        kfree(dev);
-        return;
-    }
+
 
     // Initialize IO interface
     dev->io_intf.ops = &vioblk_ops;
@@ -284,21 +264,9 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     // Get the maximum queue size
     uint32_t queue_num_max = regs->queue_num_max;
-    if (queue_num_max == 0)
-    {
-        kprintf("Device does not support queue 0\n");
-        kfree(dev->blkbuf);
-        kfree(dev);
-        return;
-    }
 
-    // Set the queue size to 1 for simplicity
-    uint16_t queue_size = num_queues;
-    regs->queue_num = queue_size;
-
-    size_t desc_size = 16 * queue_size;
-    size_t avail_size = 6 + 2 * queue_size;
-    size_t used_size = 6 + 8 * queue_size;
+    uint16_t queue_size = 1;
+    regs->queue_num = 1;
     //size_t vq_total_size = desc_size + avail_size + used_size;
 
     // Allocate memory for the virtqueue
@@ -311,17 +279,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
         kprintf("Failed to allocate memory for vioblk_device\n");
         return;
     }
-    memset(dev, 0, sizeof(struct vioblk_device));
-
-    memset(&dev->vq.desc, 0, desc_size);
-
-    // Initialize avail ring
-    memset((void*)&dev->vq.avail, 0, avail_size);
-    dev->vq.avail.idx = 0;
-
-    //Initialize used ring
-    memset((void*)&dev->vq.used, 0, used_size);
-    dev->vq.used.idx = 0;
+    
 
     // Attach the virtqueue to the device
     kprintf("flag3 \n");
@@ -338,14 +296,29 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     );
     kprintf("finished int VirtQ\n");
 
-    // Enable the virtqueue
-    virtio_enable_virtq(regs, 0);
+    dev -> vq.desc[0].addr = &dev->vq.desc[1];
+    dev -> vq.desc[0].next = 0;
 
+
+    dev -> vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
+    dev -> vq.desc[1].next = 1;
+
+
+    dev -> vq.desc[2].next = 2;
+
+    dev->vq.avail.flags = 0;
+    dev->vq.avail.idx = 0;
+
+    //Initialize used ring
+    dev->vq.used.flags = 0;
+    dev->vq.used.idx = 0;
+
+    // Initialize thread condition   kprintf("%d \n",num_queues);
     condition_init(&dev->vq.used_updated, *(&dev->vq.used_updated.name));
 
     // Register the ISR
     intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
-
+    // Register device 
     device_register("blk", &vioblk_open, dev);
 
     // FIXME END
@@ -354,6 +327,18 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     //            fence o,oi
     __sync_synchronize();
 }
+
+// Function: vioblk_open 
+// Input: struct io_intf **ioptr, void *aux
+// Ouput: int 
+// Description: sets virtq_avail and virtq_used to availiable. 
+// Set the ioptr to io_intf. Enables interrupt and set flags 
+
+// Function: vioblk_open 
+// Input: struct io_intf **ioptr, void *aux
+// Ouput: int 
+// Description: sets virtq_avail and virtq_used to availiable. 
+// Set the ioptr to io_intf. Enables interrupt and set flags 
 
 
 /*
@@ -366,18 +351,30 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 {
     //            FIXME your code here
     struct vioblk_device *dev = (struct vioblk_device *)aux;
+    virtio_enable_virtq(dev->regs, 0);
 
     if (dev->opened)
     {
         return -EBUSY; // Device is already opened
     }
-    dev->opened = 1;
-    *ioptr = &dev->io_intf;
+    dev->opened = 1; // Set opened
+    *ioptr = &dev->io_intf; // Set ioptr to the io interface 
+    intr_enable();
     return 0;
 }
 
 //            Must be called with interrupts enabled to ensure there are no pending
 //            interrupts (ISR will not execute after closing).
+
+// Function: vioblk_close
+// Input: struct io_intf *io
+// Output: void
+// Description: Resets the device virt queue and set neccesary flags
+
+// Function: vioblk_close
+// Input: struct io_intf *io
+// Output: void
+// Description: Resets the device virt queue and set neccesary flags
 
 
 /*
@@ -403,6 +400,13 @@ Input: we pass in the io_inf and buffer and the size we want to read
 Output: return the amount read
 */
 
+// Function: vioblk_read
+// Input: struct io_intf *restrict io, void *restrict buf, unsigned long bufsz
+// Output: long 
+// Description: Read bufsz number of bytes from the disk and writes them to buf. 
+// Do this by repeatedly requesting a block from disk and place in the buffer cache
+// Then finally wrties the data to buf. Thread sleeps during read. 
+
 long vioblk_read(
     struct io_intf *restrict io,
     void *restrict buf,
@@ -415,6 +419,7 @@ long vioblk_read(
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
     while (total_read < bufsz)
     {
+        kprintf("read op num %d \n", total_read);
         // Calculate current sector and offset
         sector = dev->pos / dev->blksz;
         sector_offset = dev->pos % dev->blksz;
@@ -432,10 +437,35 @@ long vioblk_read(
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
 
+        dev->vq.desc[0].addr = &dev->vq.desc[1];
+        dev->vq.desc[0].len = 16*3;
+        if (virtio_check_feature(dev->regs, VIRTIO_F_INDIRECT_DESC)){
+                dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+        }
+        dev->vq.desc[0].next = 0;
+
+        //header
+        dev->vq.desc[1].addr = &dev->vq.req_header;
+        dev->vq.desc[1].len = sizeof(dev->vq.req_header); //not sure about this
+        dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
+        dev->vq.desc[1].next = 1;
+        
+        //data
+        dev->vq.desc[2].addr = &dev->blkbuf;
+        dev->vq.desc[2].len = dev->blksz;
+        dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
+        dev->vq.desc[2].next = 2;
+
+        //status
+        dev->vq.desc[3].addr = &dev->vq.req_status; // status 
+        dev->vq.desc[3].len = 1;
+        dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+
+
+        
+
+
         // Prepare descriptors
-        // Descriptor 0: Request header
-        // Descriptor 1: Data buffer (device writes into this)
-        // Descriptor 2: Status byte
 
         // Add descriptor index to avail ring
         // Notify device
@@ -468,18 +498,22 @@ long vioblk_read(
         // uint16_t avail_idx = dev->vq.avail.idx % VIRTQ_AVAIL_SIZE(1);
         // dev->vq.avail.ring[avail_idx] = desc_idx[0];
 
+        dev->vq.avail.flags = 0;
+        dev->vq.avail.idx = 1;
+        dev->vq.avail.ring[0] = 0;
+
         __sync_synchronize();
         dev->vq.avail.idx++;
         __sync_synchronize();
 
         dev->regs->queue_notify = 0;
 
-        intr_disable();
-        while (dev->vq.req_status == 0xff)
-        {
-            condition_wait(&dev->vq.used_updated);
-        }
-        intr_enable();
+        // intr_disable();
+        // while (dev->vq.req_status == 0xff)
+        // {
+        //     condition_wait(&dev->vq.used_updated);
+        // }
+        // intr_enable();
 
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
@@ -497,6 +531,20 @@ long vioblk_read(
     
     return total_read;
 }
+
+// Function: vioblk_write
+// Input: struct io_intf *restrict io, const void *restrict buf, unsigned long n
+// Ouput: long 
+// Description: writes n number of byte from the parameter buf to the disk. The size of the 
+// device will not change during write. Thread sleeps while this happens. Finally return the 
+// Number of bytes written to the disk. 
+
+// Function: vioblk_write
+// Input: struct io_intf *restrict io, const void *restrict buf, unsigned long n
+// Ouput: long 
+// Description: writes n number of byte from the parameter buf to the disk. The size of the 
+// device will not change during write. Thread sleeps while this happens. Finally return the 
+// Number of bytes written to the disk. 
 
 
 /*
@@ -533,7 +581,7 @@ long vioblk_write(
         }
 
         // If not a full block, read existing data first
-        if (sector_offset != 0 || to_write != dev->blksz)
+        if (sector_offset != 0 || to_write != dev->blksz) // Donno what to do here 
         {
             // Prepare read request to fill blkbuf
         }
@@ -546,14 +594,32 @@ long vioblk_write(
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
 
-        // Prepare descriptors
-        // Descriptor 0: Request header
-        // Descriptor 1: Data buffer (device reads from this)
-        // Descriptor 2: Status byte
+        dev->vq.desc[0].addr = &dev->vq.desc[1];
+        dev->vq.desc[0].len = 16*3;
+        if (virtio_check_feature(dev->regs, VIRTIO_F_INDIRECT_DESC)){
+                dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+        }
+        dev->vq.desc[0].next = 0;
 
-        // Add descriptor index to avail ring
-        // Notify device
-        // Wait for completion
+        //header
+        dev->vq.desc[1].addr = &dev->vq.req_header;
+        dev->vq.desc[1].len = sizeof(dev->vq.req_header); //not sure about this
+        dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
+        dev->vq.desc[1].next = 1;
+        
+        //data
+        dev->vq.desc[2].addr = &dev->blkbuf;
+        dev->vq.desc[2].len = dev->blksz;
+        dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT;
+        dev->vq.desc[2].next = 2;
+
+        dev->vq.desc[3].addr = &dev->vq.req_status; // status 
+        dev->vq.desc[3].len = 1;
+        dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+
+        dev->vq.avail.idx = 1;
+        dev->vq.avail.ring[0] = 0;
+        
 
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
@@ -568,13 +634,10 @@ long vioblk_write(
     return total_written;
 }
 
-
-/*
-Description: this adds extra control for the vioblk
-Purpose: we can get len and pos and set the pos and get blkzs
-Input: takes in the io and a command as well as extra arg when needed
-Output: will return -ENOTSUP if error 
-*/
+// Function: vioblk_ioctl
+// Inputs: struct io_intf *restrict io, int cmd, void *restrict arg 
+// ouput: int 
+// Description: Maps all the ioctl commands to the appropriate vioblk functions. 
 
 int vioblk_ioctl(struct io_intf *restrict io, int cmd, void *restrict arg)
 {
@@ -583,32 +646,38 @@ int vioblk_ioctl(struct io_intf *restrict io, int cmd, void *restrict arg)
 
     trace("%s(cmd=%d,arg=%p)", __func__, cmd, arg);
 
+    // All cases of cmd
     switch (cmd)
     {
+        // cmd GETLEN
     case IOCTL_GETLEN:
         return vioblk_getlen(dev, arg);
+        // cmd GETPOS
     case IOCTL_GETPOS:
         return vioblk_getpos(dev, arg);
+        // cmd SETPOS
     case IOCTL_SETPOS:
         return vioblk_setpos(dev, arg);
+        // cmd GETBLKSZ
     case IOCTL_GETBLKSZ:
         return vioblk_getblksz(dev, arg);
     default:
         return -ENOTSUP;
     }
 }
-/*
-Description: This sets up the isr 
-Purpose: to set the isr and conditon broadcast
-Input: takes in the irqno and extra data
-Output: void so does not return anything
-*/
 
+
+// Function: vioblk_isr
+// Input: int irqno, void *aux 
+// Output: void
+// Description: vioblk interrupt service routine. will broadcast condition at the end. 
 void vioblk_isr(int irqno, void *aux)
 {
     //            FIXME your code here
     struct vioblk_device *dev = (struct vioblk_device *)aux;
+    // isr status is interrupt status 
     uint32_t isr_status = dev->regs->interrupt_status;
+    // set interrupt acknoledge to isr_status
     dev->regs->interrupt_ack = isr_status;
     if (isr_status & 0x1)
     {
@@ -622,6 +691,11 @@ Purpose: to get length
 Input: the device
 Output: 0 for success
 */
+
+// Function: vioblk_getlen
+// Input: const struct vioblk_device *dev, uint64_t *lenptr
+// Output: int
+// Description: Returns the device size in byte
 
 int vioblk_getlen(const struct vioblk_device *dev, uint64_t *lenptr)
 {
@@ -640,6 +714,11 @@ Input: the device
 Output: 0 for success
 */
 
+// Function: vioblk_getpos
+// Input: const struct vioblk_device *dev, uint64_t *posptr 
+// Ouput: int
+// Description: Retrieve the current position in the disk which is being written or read from
+
 int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
 {
     //            FIXME your code here
@@ -647,6 +726,7 @@ int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
     {
         return -EINVAL;
     }
+    // retrieve current position 
     *posptr = dev->pos;
     return 0;
 }
@@ -657,6 +737,11 @@ Input:takes in the device
 Output: 0 for success
 */
 
+// Function: vioblk_setpos
+// Input: struct vioblk_device *dev, const uint64_t *posptr
+// Ouput: int
+// Description: Sets the current position in the disk which is currently being written to or read from
+
 int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
 {
     //            FIXME your code here
@@ -664,6 +749,7 @@ int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
     {
         return -EINVAL;
     }
+    // Sets position 
     dev->pos = *posptr;
     return 0;
 }
@@ -674,6 +760,12 @@ Input: takes in the deivce
 Output: 0 for success
 */
 
+
+// Function: vioblk_getblksz
+// Input: const struct vioblk_device *dev, uint32_t *blkszptr
+// Output: int
+// Description: Provides the device block size
+
 int vioblk_getblksz(
     const struct vioblk_device *dev, uint32_t *blkszptr)
 {
@@ -682,6 +774,7 @@ int vioblk_getblksz(
     {
         return -EINVAL;
     }
+    // Set device block size. 
     *blkszptr = dev->blksz;
     return 0;
 }
