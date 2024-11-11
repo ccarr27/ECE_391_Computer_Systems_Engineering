@@ -13,7 +13,7 @@
 
 //           ENOTSUP
 #include "error.h"
-
+#include "console.h"
 //           EXPORTED TYPE DEFINITIONS
 //          
 
@@ -239,6 +239,7 @@ static inline int ioctl(struct io_intf * io, int cmd, void * arg) {
 }
 
 static inline int ioseek(struct io_intf * io, uint64_t pos) {
+    console_printf("HERE \n");
     return ioctl(io, IOCTL_SETPOS, &pos);
 }
 

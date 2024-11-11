@@ -534,38 +534,90 @@ void main(void) {
 
     // Testing file read in entirety using fs_read
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
-    char tempBuff[getLength];
+    void * tempBuff;
+    tempBuff = kmalloc(getLength);
     
     long validRead = ioread_full(*forOpen, tempBuff, getLength);
 
     console_printf("Number of bytes read, should be equal to length: %d \n", validRead);
-    //Do something to look at values in the tempBuff - print whole thing?
 
+    char * p = tempBuff;
+
+    console_printf("Original first value in file %d \n", *p);
+    p += 1;
+
+    console_printf("Original second value in file %d \n", *p);
+    p += 1;
+
+    console_printf("Original third value in file %d \n", *p);
+    p += 1;
+
+    console_printf("Original fourth value in file %d \n", *p);
+
+    p += 1;
+
+    console_printf("Original fifth value in file %d \n", *p);
+    p += 1;
+
+    console_printf("Original sixth value in file %d \n", *p);
+
+    kfree(tempBuff);
+    kfree(p);
+
+    console_printf("\n");
+    console_printf("Testing fs_write \n");
+    console_printf("\n");
+
+    // Testing fs_write to overwrite contents of file
+
+    setPosition = 0;
+    ioseek(*forOpen, setPosition);
+    ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
+    console_printf("Position of file after resetting position back to 0 to prepare for fs_write: %d \n", getPosition);
+    
+    int otherBuff[2] = {10, 12};
+
+    long validWrite = iowrite(*forOpen, otherBuff, sizeof(otherBuff));
+
+    console_printf("Number of bytes written: %d \n", validWrite);
+
+    setPosition = 0;
+    ioseek(*forOpen, setPosition);
+
+    ioctl(*forOpen, IOCTL_GETLEN, &getLength);
+
+    void * thirdBuff;
+    console_printf("len %d \n", getLength);
+    thirdBuff = kmalloc(getLength);
+
+    long otherValidRead = ioread(*forOpen, thirdBuff, getLength);
+
+    console_printf("Return value from reading four bytes %d \n", otherValidRead);
+
+    char * a = thirdBuff;
+
+    console_printf("New first value in file %d \n", *a);
+    a += 1;
+
+    console_printf("New second value in file %d \n", *a);
+    a += 1;
+
+    console_printf("New third value in file %d \n", *a);
+    a += 1;
+
+    console_printf("New fourth value in file %d \n", *a);
+
+    a += 1;
+
+    console_printf("New fifth value in file %d \n", *a);
+    a += 1;
+
+    console_printf("New sixth value in file %d \n", *a);
+
+    kfree(otherBuff);
+    kfree(p);
+    kfree(thirdBuff);
     // Set position back to 0 to be able to write from beginning
-
-    
-
-   // Add write test and then done.
-
-   // Show write to overwrite contents of file
-   //Print first five characters of file
-   //Write 'change' to first five spots - should return 5
-   //Print new five characters of file
-   //Print whole file
-
-    // Length of hello is 39040
-
-    
-
-
-//      struct io_intf ** forOpen = kmalloc(sizeof(struct io_intf )); // add **?
-//      int open_result = fs_open("hello", forOpen);
-//      console_printf("testing fs_open: %d \n", open_result);
-
-//     void * otherBuff = kmalloc(3);
-//     otherBuff = "bob";
-//     iowrite(*forOpen, otherBuff, 3);
-//     console_printf("testing io result %d \n", ioctl(*forOpen, 3, NULL));
 
 
 }
