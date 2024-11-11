@@ -586,6 +586,8 @@ void main(void) {
 
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
 
+    /*
+
     void * thirdBuff;
     console_printf("len %d \n", getLength);
     thirdBuff = kmalloc(getLength);
@@ -617,7 +619,13 @@ void main(void) {
     kfree(otherBuff);
     kfree(p);
     kfree(thirdBuff);
-    // Set position back to 0 to be able to write from beginning
+
+    setPosition = 0;
+    ioseek(*forOpen, setPosition);
+    ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
+    console_printf("Resetting position for future operations: %d \n", getPosition);
+    
+    */
 
 
 }

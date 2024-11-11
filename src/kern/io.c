@@ -369,7 +369,6 @@ Output: int that usually if success equals specified value
 int iolit_ctl(struct io_intf *io, int cmd, void *arg)
 {
     // get io_lit from io_intf
-    console_printf("HERE \n");
     struct io_lit *const iol = (void *)io - offsetof(struct io_lit, io_intf);
     if (cmd == IOCTL_GETLEN) // get length
     {

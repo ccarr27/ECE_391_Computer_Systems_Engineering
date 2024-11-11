@@ -369,11 +369,6 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         else
         {
             memcpy(globalIO, buf , (size_t) tempN);
-            console_printf("test \n");
-            ioseek(globalIO, 0);
-            char* p = globalIO;
-            p += 4;
-            console_printf("Here %d \n", *p);
             filePos += tempN;
             tempN = 0;
         }
