@@ -434,11 +434,11 @@ long vioblk_read(
 
         //prepare flags
         dev->vq.avail.flags = 0;
-        // dev->vq.avail.idx++;
+        dev->vq.avail.idx =1 ;
         dev->vq.avail.ring[0] = 0;
 
         __sync_synchronize();
-        dev->vq.avail.idx++;
+        dev->vq.avail.idx--;
         __sync_synchronize();
 
         dev->regs->queue_notify = 0;
