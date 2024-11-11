@@ -79,7 +79,7 @@ run-test: test.elf
 	$(QEMU) $(QEMUOPTS)
 
 run-elf_test: elf_test.elf
-	$(QEMU) $(QEMUOPTS)
+	$(QEMU) $(QEMUOPTS) 
 
 debug-elf: 
 	$(QEMU) -machine virt -bios none -kernel elf_test.elf -m 128M serial mon:stdio -device bochs-display -s -S
@@ -95,8 +95,8 @@ clean:
 	rm -rf *.o *.elf *.asm
 	if [ -f companion.o.save ]; then mv companion.o.save companion.o; fi
 
-# clean:
-# 	rm -rf *.o *.elf *.asm companion.o
+clean_comp:
+	rm -rf *.o *.elf *.asm companion.o
 
 companion.o:
 	if [ -f ../user/trek ]; then sh ./mkcomp.sh ../user/trek; fi
