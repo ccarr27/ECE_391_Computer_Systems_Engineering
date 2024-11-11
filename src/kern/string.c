@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#include "console.h"
+
 //           INTERNAL STRUCTURE DEFINITIONS
 //           
 
@@ -124,14 +126,12 @@ void * memset(void * s, int c, size_t n) {
 
 void * memcpy(void * restrict dst, const void * restrict src, size_t n) {
 	char * p = dst;
-	
 	while (n != 0) {
 		*(char*)p = *(const char*)src;
 		p += 1;
 		src += 1;
 		n -= 1;
 	}
-
 	return dst;
 }
 

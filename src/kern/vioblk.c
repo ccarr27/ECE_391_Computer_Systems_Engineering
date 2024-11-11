@@ -64,6 +64,7 @@ struct vioblk_request_header
 //            FIXME You may modify this structure in any way you want. It is given as a
 //            hint to help you, but you may have your own (better!) way of doing things.
 
+
 struct vioblk_device
 {
     volatile struct virtio_mmio_regs *regs;
@@ -81,6 +82,7 @@ struct vioblk_device
     uint64_t size;
     //            size of device in blksz blocks
     uint64_t blkcnt;
+
 
     struct
     {
@@ -118,6 +120,8 @@ struct vioblk_device
 
 //            INTERNAL FUNCTION DECLARATIONS
 //           
+
+// struct vioblk_device * save_pointer;
 
 static int vioblk_open(struct io_intf **ioptr, void *aux);
 
@@ -158,14 +162,12 @@ static const struct io_ops vioblk_ops = {
     .ctl = vioblk_ioctl};
 
 
-// Function: vioblk_attach
-// Input: struct virtio_mmio_regs *regs, int irqno 
-// Ouput: None 
-// Description: Initialize virtio block device with the necessary IO operation
-// fills out the descriptors in the virtq struct and attach the virtq_avail 
-// and the virtq_used. Finally call the vioblk isr and register the device. 
-
-
+/*
+Description: this function initializes virt io block
+Purpose: fills out descriptors and sets everything up
+Input: takes in the registers 
+Output: void so does not return anything
+*/
 void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 {
     //            FIXME add additional declarations here if needed
@@ -205,6 +207,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     result = virtio_negotiate_features(regs,
                                        enabled_features, wanted_features, needed_features);
 
+
     if (result != 0)
     {
         kprintf ("%d: feature error\n", result);
@@ -225,6 +228,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
 
     dev = kmalloc(sizeof(struct vioblk_device) + blksz);
 
+    // save_pointer = dev;
+
     //            FIXME Finish initialization of vioblk device here
 
     // Initilze the device and its variables 
@@ -239,7 +244,8 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     dev->opened = 0;
     dev->pos = 0;
     // Allocate memory for block buffer 
-    dev->blkbuf = kmalloc(blksz);
+    // dev->blkbuf = kmalloc(blksz);
+    dev->blkbuf = ((char*)dev) + sizeof(struct vioblk_device);
 
 
     // Initialize IO interface
@@ -257,21 +263,6 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     regs->queue_num = 1;
     //size_t vq_total_size = desc_size + avail_size + used_size;
 
-    // Allocate memory for the virtqueue
-
-    dev = kmalloc(sizeof(struct vioblk_device));
-
-
-    if (!dev)
-    {
-        kprintf("Failed to allocate memory for vioblk_device\n");
-        return;
-    }
-    
-
-    // Attach the virtqueue to the device
-    kprintf("flag3 \n");
-
 
 
     virtio_attach_virtq(
@@ -284,7 +275,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     );
     kprintf("finished int VirtQ\n");
 
-    dev -> vq.desc[0].addr = &dev->vq.desc[1];
+    dev -> vq.desc[0].addr = (uint64_t)&dev->vq.desc[1];
     dev -> vq.desc[0].next = 0;
 
 
@@ -316,16 +307,19 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     __sync_synchronize();
 }
 
-// Function: vioblk_open 
-// Input: struct io_intf **ioptr, void *aux
-// Ouput: int 
-// Description: sets virtq_avail and virtq_used to availiable. 
-// Set the ioptr to io_intf. Enables interrupt and set flags 
 
+/*
+Description: this opens the vioblk
+Purpose: the purpose is to set both the avail and used queues
+Input: takes in a pointer to an io_intf andio_intf extra data
+Output: return 0 if success
+*/
 int vioblk_open(struct io_intf **ioptr, void *aux)
 {
     //            FIXME your code here
     struct vioblk_device *dev = (struct vioblk_device *)aux;
+    // struct vioblk_device *dev = save_pointer;
+
     virtio_enable_virtq(dev->regs, 0);
 
     if (dev->opened)
@@ -341,11 +335,13 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 //            Must be called with interrupts enabled to ensure there are no pending
 //            interrupts (ISR will not execute after closing).
 
-// Function: vioblk_close
-// Input: struct io_intf *io
-// Output: void
-// Description: Resets the device virt queue and set neccesary flags
 
+/*
+Description: this closes the vioblk device
+Purpose: the purpose if to close the device
+Input: the io_intf struct
+Output:void so return nothing
+*/
 void vioblk_close(struct io_intf *io)
 {
     //            FIXME your code here
@@ -354,12 +350,13 @@ void vioblk_close(struct io_intf *io)
     virtio_reset_virtq(dev->regs, 0);
 }
 
-// Function: vioblk_read
-// Input: struct io_intf *restrict io, void *restrict buf, unsigned long bufsz
-// Output: long 
-// Description: Read bufsz number of bytes from the disk and writes them to buf. 
-// Do this by repeatedly requesting a block from disk and place in the buffer cache
-// Then finally wrties the data to buf. Thread sleeps during read. 
+
+/*
+Description: this reads from the buffers
+Purpose:it reads an amount of bufsz from the disk into buf
+Input: we pass in the io_inf and buffer and the size we want to read
+Output: return the amount read
+*/
 
 long vioblk_read(
     struct io_intf *restrict io,
@@ -367,22 +364,36 @@ long vioblk_read(
     unsigned long bufsz)
 {
     //            FIXME your code here
-    unsigned long total_read = 0;
-    uint64_t sector, sector_offset;
-    unsigned long to_read;
+        //geting the dev
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
-    while (total_read < bufsz)
-    {
+
+    //chnage the buf pointer to a char buf pointer
+    char * char_buf = (char*)buf;
+
+    //total amount read
+    uint64_t total_read = 0;
+
+    //the 512 block sectore we are in and the offset of the sector we are in
+    uint64_t sector, sector_offset;
+
+    //how much has to be read in this sector
+    uint64_t to_read;
+
+    //type cast block size to 64bits
+    uint64_t blksz = dev->blksz;
+
+    while (total_read < (uint64_t)bufsz){
         kprintf("read op num %d \n", total_read);
         // Calculate current sector and offset
-        sector = dev->pos / dev->blksz;
-        sector_offset = dev->pos % dev->blksz;
+        sector = dev->pos / blksz;
+        sector_offset = dev->pos % blksz;
 
         // Determine how much to read in this iteration
-        to_read = dev->blksz - sector_offset;
-        if (to_read > (bufsz - total_read))
+        to_read = (blksz - sector_offset);
+
+        if (to_read > ((uint64_t)bufsz - total_read))
         {
-            to_read = bufsz - total_read;
+            to_read = (uint64_t)bufsz - total_read;
         }
 
         // Prepare request header
@@ -391,21 +402,27 @@ long vioblk_read(
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
 
+
+        //prepare descriptor table
+        //inderect
         dev->vq.desc[0].addr = &dev->vq.desc[1];
-        dev->vq.desc[0].len = 16*3;
-        if (virtio_check_feature(dev->regs, VIRTIO_F_INDIRECT_DESC)){
-                dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
-        }
+        dev->vq.desc[0].len = sizeof(struct virtq_desc)*3;
+        // if (virtio_check_feature(dev->regs, VIRTIO_F_INDIRECT_DESC)){
+        //         dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+        // }
+        dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+
         dev->vq.desc[0].next = 0;
 
         //header
         dev->vq.desc[1].addr = &dev->vq.req_header;
-        dev->vq.desc[1].len = sizeof(dev->vq.req_header); //not sure about this
+        dev->vq.desc[1].len = sizeof(struct vioblk_request_header); //not sure about this
         dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
         dev->vq.desc[1].next = 1;
         
         //data
-        dev->vq.desc[2].addr = &dev->blkbuf;
+        // dev->vq.desc[2].addr = &dev->blkbuf;
+        dev->vq.desc[2].addr = dev->blkbuf;
         dev->vq.desc[2].len = dev->blksz;
         dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
         dev->vq.desc[2].next = 2;
@@ -413,51 +430,16 @@ long vioblk_read(
         //status
         dev->vq.desc[3].addr = &dev->vq.req_status; // status 
         dev->vq.desc[3].len = 1;
-        dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+        dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;        
 
 
-        
-
-
-        // Prepare descriptors
-
-        // Add descriptor index to avail ring
-        // Notify device
-        // Wait for completion (use condition variable)
-
-        
-        // dev->vq.req_status = 0xff;
-        // uint16_t desc_idx[3];
-
-        // struct virtq_desc *desc0 = &dev->vq.desc[desc_idx[0]];
-        // //desc0->addr = virt_to_phys((void *)req_hdr);
-        // desc0->len = sizeof(struct vioblk_request_header);
-        // desc0->flags = VIRTQ_DESC_F_NEXT; // Device-readable
-        // desc0->next = desc_idx[1];
-
-        // // Descriptor 1: Data buffer (device-writable)
-        // struct virtq_desc *desc1 = &dev->vq.desc[desc_idx[1]];
-        // //desc1->addr = virt_to_phys((char *)dev->blkbuf);
-        // desc1->len = dev->blksz;
-        // desc1->flags = VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE; // Device-writable
-        // desc1->next = desc_idx[2];
-
-        // // Descriptor 2: Status byte (device-writable)
-        // struct virtq_desc *desc2 = &dev->vq.desc[desc_idx[2]];
-        // //desc2->addr = virt_to_phys((void *)&dev->vq.req_status);
-        // desc2->len = sizeof(uint8_t);
-        // desc2->flags = VIRTQ_DESC_F_WRITE; // Device-writable
-        // desc2->next = 0;
-
-        // uint16_t avail_idx = dev->vq.avail.idx % VIRTQ_AVAIL_SIZE(1);
-        // dev->vq.avail.ring[avail_idx] = desc_idx[0];
-
+        //prepare flags
         dev->vq.avail.flags = 0;
-        dev->vq.avail.idx = 1;
+        dev->vq.avail.idx =1 ;
         dev->vq.avail.ring[0] = 0;
 
         __sync_synchronize();
-        dev->vq.avail.idx++;
+        dev->vq.avail.idx--;
         __sync_synchronize();
 
         dev->regs->queue_notify = 0;
@@ -469,6 +451,10 @@ long vioblk_read(
         // }
         // intr_enable();
 
+        // while(){
+        //     condition_wait(&dev->vq.used_updated);
+        // }
+
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
         { 
@@ -476,23 +462,24 @@ long vioblk_read(
         }
 
         // Copy data from block buffer to user buffer
-        memcpy((char *)buf + total_read, dev->blkbuf + sector_offset, to_read);
+        // memcpy(char_buf + (uint64_t)total_read, dev->blkbuf + sector_offset, to_read);
+        memcpy(char_buf + (uint64_t)total_read, dev->blkbuf + dev->pos, to_read);
 
         // Update position and counters
         dev->pos += to_read;
         total_read += to_read;
     }
     
-    return total_read;
+    return (unsigned long)total_read;
 }
 
-// Function: vioblk_write
-// Input: struct io_intf *restrict io, const void *restrict buf, unsigned long n
-// Ouput: long 
-// Description: writes n number of byte from the parameter buf to the disk. The size of the 
-// device will not change during write. Thread sleeps while this happens. Finally return the 
-// Number of bytes written to the disk. 
 
+/*
+Description: this writes from the buf to the disk
+Purpose: the purpose is to write an amount from the buffer to disk
+Input: should take in the io, buf to read from and n for number of bites to read
+Output: return the amount read
+*/
 long vioblk_write(
     struct io_intf *restrict io,
     const void *restrict buf,
@@ -625,6 +612,12 @@ void vioblk_isr(int irqno, void *aux)
         condition_broadcast(&dev->vq.used_updated);
     }
 }
+/*
+Description: gets the length of the vioblk
+Purpose: to get length
+Input: the device
+Output: 0 for success
+*/
 
 // Function: vioblk_getlen
 // Input: const struct vioblk_device *dev, uint64_t *lenptr
@@ -675,6 +668,12 @@ int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
     dev->pos = *posptr;
     return 0;
 }
+/*
+Description:to get the blk size
+Purpose:to get the blk size
+Input: takes in the deivce
+Output: 0 for success
+*/
 
 
 // Function: vioblk_getblksz

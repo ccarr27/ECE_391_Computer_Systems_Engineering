@@ -104,7 +104,15 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     
     // //first step is to load the elf file so call ioread to read it into elf_header
 
-    if( ioread(io, &elf_header, sizeof(Elf64_Ehdr))!= 0){      //ioread returns size of what we just read so it should be the sizeof(Elf64_Ehdr)
+    // long ioreturn = ioread(io, &elf_header, sizeof(Elf64_Ehdr));
+
+    // console_printf("Executing line %d ioreturn = %ld\n", __LINE__, ioreturn);
+    // console_printf("Executing line %d elf64size= %ld\n", __LINE__, (long)sizeof(Elf64_Ehdr));
+
+
+
+
+    if( ioread(io, &elf_header, sizeof(Elf64_Ehdr)) != (long)sizeof(Elf64_Ehdr)){      //ioread returns size of what we just read so it should be the sizeof(Elf64_Ehdr)
         return -1;  //not same size as we expected so return -1
     }
 
@@ -160,7 +168,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         }
 
         //now we can read
-        if(ioread(io, &prog_header, sizeof(Elf64_Phdr)) != 0){ //we expect to get the same size back
+        if(ioread(io, &prog_header, sizeof(Elf64_Phdr)) != (long)(sizeof(Elf64_Phdr))){ //we expect to get the same size back
             return -5; 
         }
 
@@ -182,8 +190,17 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
                 return -7;
             }
 
+
+            // long readreturn = ioread(io, v_addr, prog_header.p_filesz);
+
+            // console_printf("p_filesz size using sizeof: %lu\n", prog_header.p_filesz);
+            // console_printf("readreturn: %ld\n", readreturn);
+
+
+
+
             //load this file into memory
-            if(ioread(io, v_addr, prog_header.p_filesz) != 0){ //make sure the file is the same size
+            if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
             }
 

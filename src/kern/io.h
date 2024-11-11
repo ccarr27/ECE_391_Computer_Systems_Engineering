@@ -13,7 +13,7 @@
 
 //           ENOTSUP
 #include "error.h"
-
+#include "console.h"
 //           EXPORTED TYPE DEFINITIONS
 //          
 

@@ -70,29 +70,27 @@ void main(void) {
 
     int buffer[128];  // A memory buffer that will act like a "file"
 
-    const int message = 5;
-
-    console_printf("%d\n", message);
-
-
     io = iolit_init(lit, buffer, sizeof(buffer));
     console_printf("io init done \n");
-
+    int io_length;
     //get length test
-    int io_length = io->ops->ctl(io, IOCTL_GETLEN, NULL);;
-    console_printf("get length of buff: %d\n", io_length);
-
+    io->ops->ctl(io, IOCTL_GETLEN, &io_length);;
+    console_printf("get length of buff through io_length: %d\n", io_length);
+    int io_pos;
     //get the curr position
-    int curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-    console_printf("curr pos: %d\n", curr_pos);
+    io->ops->ctl(io, IOCTL_GETPOS, &io_pos);
+    console_printf("curr pos: %d\n", io_pos);
 
+    const int message = 5;
     //io write test
+    console_printf("%d\n", message);
     int write_test = io->ops->write(io, &message, sizeof(int));
     console_printf("io write return: %d \n", write_test);
+    console_printf("io buf check val: %d \n", buffer[0]);
 
     //get the curr position
-    curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-    console_printf("curr pos after calling write: %d\n", curr_pos);
+    io->ops->ctl(io, IOCTL_GETPOS, &io_pos);
+    console_printf("curr pos after calling write: %d\n", io_pos);
 
     //now set the curr postion
     size_t new_pos = 0;
@@ -100,8 +98,8 @@ void main(void) {
     console_printf("set positon return value: %d\n", setpos_ret);
 
     //get the curr position
-    curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-    console_printf("curr pos after setting it: %d\n", curr_pos);
+    io->ops->ctl(io, IOCTL_GETPOS, &io_pos);
+    console_printf("curr pos after setting it: %d\n", io_pos);
 
 
     //now in order to test write we can test read
@@ -111,8 +109,8 @@ void main(void) {
 
 
     //get the curr position
-    curr_pos = io->ops->ctl(io, IOCTL_GETPOS, NULL);
-    console_printf("curr pos: %d\n", curr_pos);
+    io->ops->ctl(io, IOCTL_GETPOS, &io_pos);
+    console_printf("curr pos: %d\n", io_pos);
 
 
 }

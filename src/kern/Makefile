@@ -72,14 +72,17 @@ debug-shell: shell.elf
 
 debug-test: test.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
+	
 # You might want to add more here
 
 run-test: test.elf
 	$(QEMU) $(QEMUOPTS)
 
 run-elf_test: elf_test.elf
-	$(QEMU) $(QEMUOPTS)
+	$(QEMU) $(QEMUOPTS) 
+
+debug-elf: elf_test.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 run-iotest: iotest.elf
 	$(QEMU) $(QEMUOPTS)
@@ -91,8 +94,8 @@ clean:
 	rm -rf *.o *.elf *.asm
 	if [ -f companion.o.save ]; then mv companion.o.save companion.o; fi
 
-# clean:
-# 	rm -rf *.o *.elf *.asm companion.o
+clean_comp:
+	rm -rf *.o *.elf *.asm companion.o
 
 companion.o:
 	if [ -f ../user/trek ]; then sh ./mkcomp.sh ../user/trek; fi
