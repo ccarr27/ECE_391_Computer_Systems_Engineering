@@ -81,9 +81,8 @@ run-test: test.elf
 run-elf_test: elf_test.elf
 	$(QEMU) $(QEMUOPTS)
 
-debug-elf: 
-	$(QEMU) -machine virt -bios none -kernel elf_test.elf -m 128M serial mon:stdio -device bochs-display -s -S
-	
+debug-elf: elf_test.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 run-iotest: iotest.elf
 	$(QEMU) $(QEMUOPTS)

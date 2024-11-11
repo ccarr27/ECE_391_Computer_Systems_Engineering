@@ -536,8 +536,9 @@ void main(void) {
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
     void * tempBuff;
     tempBuff = kmalloc(getLength);
-    
     long validRead = ioread_full(*forOpen, tempBuff, getLength);
+
+    //for loop, compare all bytes using companion_start and buffer
 
     console_printf("Number of bytes read, should be equal to length: %d \n", validRead);
 
