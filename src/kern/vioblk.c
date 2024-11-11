@@ -421,7 +421,8 @@ long vioblk_read(
         dev->vq.desc[1].next = 1;
         
         //data
-        dev->vq.desc[2].addr = &dev->blkbuf;
+        // dev->vq.desc[2].addr = &dev->blkbuf;
+        dev->vq.desc[2].addr = dev->blkbuf;
         dev->vq.desc[2].len = dev->blksz;
         dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT|VIRTQ_DESC_F_WRITE;
         dev->vq.desc[2].next = 2;
