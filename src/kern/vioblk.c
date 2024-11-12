@@ -469,7 +469,7 @@ long vioblk_read(
         dev->pos += to_read;
         total_read += to_read;
     }
-    kprintf("read op num %d \n", total_read);
+    // kprintf("read op num %d \n", total_read);
 
     return (unsigned long)total_read;
 }
