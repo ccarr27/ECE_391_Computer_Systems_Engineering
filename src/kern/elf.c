@@ -175,7 +175,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         //now only continue if our program is type PT Load
         if(prog_header.p_type == PT_LOAD){
 
-            // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
+            console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
             //get the address of the program
             // void *v_addr = prog_header.p_vaddr;
             void *v_addr = (void *)(uintptr_t)prog_header.p_vaddr;
@@ -205,18 +205,20 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
             }
 
             //initialize everything else to 0
+            
             if(prog_header.p_memsz > prog_header.p_filesz){
                 // void * memset(void * s, int c, size_t n)
                 memset((void *)((Elf64_Addr)(v_addr+ prog_header.p_filesz)), 0, prog_header.p_memsz - prog_header.p_filesz); //initialize the uninitialized to 0
             }
+            
         }
     }
 
     //set the rentry point of execution
     *entryptr = (void (*)(struct io_intf *)) elf_header.e_entry;
-
+    console_printf("entry %x \n", entryptr);
     //close the file since we extracted what we needed
-    ioclose(io);
+    // ioclose(io);
 
     // console_printf("success \n");
 

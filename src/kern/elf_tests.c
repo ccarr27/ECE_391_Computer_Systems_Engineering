@@ -379,10 +379,10 @@ extern char _companion_f_end[];
 #define VIRT1_IOBASE 0x10002000
 #define VIRT0_IRQNO 1
 
-// static void shell_main(struct io_intf * termio);
+ static void shell_main(struct io_intf * termio);
 
 void main(void) {
-    // struct io_intf * termio;
+     struct io_intf * termio;
     struct io_intf * blkio;
     void * mmio_base;
     int result;
@@ -416,6 +416,91 @@ void main(void) {
     timer_start();
 
     struct io_lit * lit = kmalloc(sizeof(struct  io_lit));
+    termio = iolit_init(lit, _companion_f_start, (size_t)(_companion_f_end- _companion_f_start));
+
+     intr_enable();
+    timer_start();
+
+   result = device_open(&blkio, "blk", 0);
+
+    if (result != 0)
+        panic("device_open failed");
+    
+    result = fs_mount(blkio);
+
+    debug("Mounted blk0");
+
+    if (result != 0)
+        panic("fs_mount failed");
+
+    //           Open terminal for trek
+
+    result = device_open(&termio, "ser", 1);
+
+    if (result != 0)
+        panic("Could not open ser1");
+    
+    shell_main(termio);
+}
+
+void shell_main(struct io_intf * termio_raw) {
+    struct io_term ioterm;
+    struct io_intf * termio;
+    void (*exe_entry)(struct io_intf*);
+    struct io_intf * exeio;
+    char cmdbuf[9];
+    int tid;
+    int result;
+
+    termio = ioterm_init(&ioterm, termio_raw);
+
+    ioputs(termio, "Enter executable name or \"exit\" to exit");
+    
+
+    for (;;) {
+        ioprintf(termio, "CMD> ");
+        ioterm_getsn(&ioterm, cmdbuf, sizeof(cmdbuf));
+
+        if (cmdbuf[0] == '\0')
+            continue;
+
+        if (strcmp("exit", cmdbuf) == 0)
+            return;
+        
+        result = fs_open(cmdbuf, &exeio);
+
+        if (result < 0) {
+            if (result == -ENOENT)
+                ioprintf(termio, "%s: File not found\n", cmdbuf);
+            else
+                ioprintf(termio, "%s: Error %d\n", cmdbuf, -result);
+            continue;
+        }
+
+        debug("Calling elf_load(\"%s\")", cmdbuf);
+
+        result = elf_load(exeio, &exe_entry);
+
+        debug("elf_load(\"%s\") returned %d", cmdbuf, result);
+
+        if (result < 0) {
+            ioprintf(termio, "%s: Error %d\n", -result);
+        
+        } else {
+            tid = thread_spawn(cmdbuf, (void*)exe_entry, termio_raw);
+
+            if (tid < 0)
+                ioprintf(termio, "%s: Error %d\n", -result);
+            else
+                thread_join(tid);
+        }
+
+        ioclose(exeio);
+    }
+}
+
+
+    /*
     console_printf("start addr %x \n", _companion_f_start);
     console_printf("end addr %x \n", _companion_f_end);
     blkio = iolit_init(lit, _companion_f_start, (size_t)(_companion_f_end- _companion_f_start));
@@ -428,8 +513,10 @@ void main(void) {
 
     console_printf("elf return result: %d \n", result);
     console_printf("elf exe_entry: %lx \n", exe_entry);
-    
-    
+    */
+
+
+    /*
 
     // Testing kfs.c
 
@@ -627,3 +714,4 @@ void main(void) {
 
 
 }
+*/

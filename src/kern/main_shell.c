@@ -125,6 +125,7 @@ void shell_main(struct io_intf * termio_raw) {
         debug("Calling elf_load(\"%s\")", cmdbuf);
 
         result = elf_load(exeio, &exe_entry);
+        console_printf("exe entry %x \n", exe_entry);
 
         debug("elf_load(\"%s\") returned %d", cmdbuf, result);
 
