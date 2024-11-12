@@ -142,10 +142,10 @@ extern char _kimg_end[];
 #define VIRT1_IOBASE 0x10002000
 #define VIRT0_IRQNO 1
 
-static void shell_main(struct io_intf * termio);
+// static void shell_main(struct io_intf * termio);
 
 void main(void) {
-    struct io_intf * termio;
+    // struct io_intf * termio;
     struct io_intf * blkio;
     void * mmio_base;
     int result;
@@ -193,7 +193,7 @@ void main(void) {
     kprintf("length: %d\n", length);
 
 
-    for(int j=0; j<50; j++){
+    for(int j=0; j<1; j++){
 
     kprintf("j: %d\n",j);
 

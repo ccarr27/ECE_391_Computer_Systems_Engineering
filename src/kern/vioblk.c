@@ -256,7 +256,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     __sync_synchronize();
 
     // Get the maximum queue size
-    uint32_t queue_num_max = regs->queue_num_max;
+    // uint32_t queue_num_max = regs->queue_num_max;
 
     uint16_t queue_size = 1;
     // regs->queue_num = 1;
@@ -407,26 +407,26 @@ long vioblk_read(
 
         // prepare descriptor table
         // inderect
-        dev->vq.desc[0].addr = &dev->vq.desc[1];
+        dev->vq.desc[0].addr = (uint64_t)&dev->vq.desc[1];
         dev->vq.desc[0].len = sizeof(struct virtq_desc) * 3;
         dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
         dev->vq.desc[0].next = 0;
 
         // header
-        dev->vq.desc[1].addr = &dev->vq.req_header;
+        dev->vq.desc[1].addr = (uint64_t)&dev->vq.req_header;
         dev->vq.desc[1].len = sizeof(struct vioblk_request_header); // not sure about this
         dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
         dev->vq.desc[1].next = 1;
 
         // data
         //  dev->vq.desc[2].addr = &dev->blkbuf;
-        dev->vq.desc[2].addr = dev->blkbuf;
+        dev->vq.desc[2].addr = (uint64_t)dev->blkbuf;
         dev->vq.desc[2].len = dev->blksz;
         dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE;
         dev->vq.desc[2].next = 2;
 
         // status
-        dev->vq.desc[3].addr = &dev->vq.req_status; // status
+        dev->vq.desc[3].addr = (uint64_t)&dev->vq.req_status; // status
         dev->vq.desc[3].len = sizeof(dev->vq.req_status);
         dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
 
@@ -441,6 +441,7 @@ long vioblk_read(
         dev->vq.avail.idx++;
         __sync_synchronize();
 
+        //notify that a descriptor is waiting
         dev->regs->queue_notify = 0;
         __sync_synchronize();
 
@@ -484,78 +485,110 @@ long vioblk_write(
     const void *restrict buf,
     unsigned long n)
 {
+    
     //            FIXME your code here
-    unsigned long total_written = 0;
-    uint64_t sector, sector_offset;
-    unsigned long to_write;
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
+    //make sure the dev is good
+    if(dev->opened == 0){
+        return -1;      //device was closed
+    }
+
     if (dev->readonly)
     {
         return -ENOTSUP; // Read-only file system
     }
-    while (total_written < n)
+
+    //check inputs:
+    if(n == 0){
+        return 0;  //bufsz was zero so we read 0
+    }
+
+    //variables used
+    uint64_t total_written = 0;
+    uint64_t sector, sector_offset;
+    uint64_t to_write;
+    uint64_t blksz = dev->blksz;
+
+    char * buffer = (char *)buf;
+
+
+
+
+    while (total_written < (uint64_t)n)
     {
+
+        if(dev->pos >= dev->size){
+            break;
+        }
+
         // Calculate current sector and offset
-        sector = dev->pos / dev->blksz;
-        sector_offset = dev->pos % dev->blksz;
+        sector = dev->pos / blksz;
+        sector_offset = dev->pos % blksz;
 
         // Determine how much to write in this iteration
-        to_write = dev->blksz - sector_offset;
-        if (to_write > (n - total_written))
+        to_write = blksz - sector_offset;
+        if (to_write >= (n - total_written))
         {
             to_write = n - total_written;
         }
 
-        // If not a full block, read existing data first
-        if (sector_offset != 0 || to_write != dev->blksz) // Donno what to do here
-        {
-            // Prepare read request to fill blkbuf
-        }
+        // // If not a full block, read existing data first
+        // if (sector_offset != 0 || to_write != blksz) // Donno what to do here
+        // {
+        //     // Prepare read request to fill blkbuf
+        // }
 
         // Copy data from user buffer to blkbuf
-        memcpy(dev->blkbuf + dev->pos, (char *)buf + (uint64_t)total_written, to_write);
+        memcpy(dev->blkbuf + sector_offset, buffer + total_written, to_write);
 
         // Prepare write request
         dev->vq.req_header.type = VIRTIO_BLK_T_OUT;
         dev->vq.req_header.sector = sector;
         dev->vq.req_header.reserved = 0;
 
-        dev->vq.desc[0].addr = &dev->vq.desc[1];
+        dev->vq.desc[0].addr = (uint64_t)&dev->vq.desc[1];
         dev->vq.desc[0].len = sizeof(struct virtq_desc) * 3;
         dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
         dev->vq.desc[0].next = 0;
 
         // header
-        dev->vq.desc[1].addr = &dev->vq.req_header;
+        dev->vq.desc[1].addr = (uint64_t)&dev->vq.req_header;
         dev->vq.desc[1].len = sizeof(struct vioblk_request_header); // not sure about this
         dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
         dev->vq.desc[1].next = 1;
 
         // data
-        dev->vq.desc[2].addr = dev->blkbuf;
+        dev->vq.desc[2].addr = (uint64_t)dev->blkbuf;
         dev->vq.desc[2].len = dev->blksz;
-        dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT;
+        dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT;  //device is auto set to read
         dev->vq.desc[2].next = 2;
 
-        dev->vq.desc[3].addr = &dev->vq.req_status; // status
+        dev->vq.desc[3].addr = (uint64_t)&dev->vq.req_status; // status
         dev->vq.desc[3].len = 1;
         dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
 
-        dev->vq.avail.idx = 1;
+        // dev->vq.avail.idx = 1;
+
+        //add descriptor to available to make this happen
         dev->vq.avail.ring[0] = 0;
 
         // Check status byte
 
         __sync_synchronize();
-        dev->vq.avail.idx--;
+        dev->vq.avail.idx++;
         __sync_synchronize();
 
+        //notify that a descriptor is waiting
         dev->regs->queue_notify = 0;
+        __sync_synchronize();
 
+
+        int intr_num = intr_disable();
         while (dev->vq.avail.idx != dev->vq.used.idx) // not sure if correct
         {
             condition_wait(&dev->vq.used_updated);
         }
+        intr_restore(intr_num);
 
         // Check status byte
         if (dev->vq.req_status != VIRTIO_BLK_S_OK)
@@ -567,7 +600,7 @@ long vioblk_write(
         dev->pos += to_write;
         total_written += to_write;
     }
-    return total_written;
+    return (long)total_written;
 }
 
 // Function: vioblk_ioctl
