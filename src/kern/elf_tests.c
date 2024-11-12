@@ -534,15 +534,10 @@ void main(void) {
 
     // Testing file read in entirety using fs_read
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
-    //void * tempBuff;
-    //tempBuff = kmalloc(getLength);
-    //long validRead = ioread_full(*forOpen, tempBuff, getLength);
 
     void * tempBuff;
-    tempBuff = kmalloc(4096);
-    long validRead = ioread(*forOpen, tempBuff, 4096);
-
-    //for loop, compare all bytes using companion_start and buffer
+    tempBuff = kmalloc(39040);
+    long validRead = ioread_full(*forOpen, tempBuff, getLength);
 
     console_printf("Number of bytes read, should be equal to length: %d \n", validRead);
 
@@ -572,6 +567,7 @@ void main(void) {
     console_printf("\n");
     console_printf("Testing fs_write \n");
     console_printf("\n");
+    
 
     // Testing fs_write to overwrite contents of file
 
@@ -580,7 +576,7 @@ void main(void) {
     ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
     console_printf("Position of file after resetting position back to 0 to prepare for fs_write: %d \n", getPosition);
     
-    int otherBuff[2] = {10, 12};
+    int otherBuff[30] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
     long validWrite = iowrite(*forOpen, otherBuff, sizeof(otherBuff));
 
@@ -591,15 +587,14 @@ void main(void) {
 
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
 
-    /*
+    
 
     void * thirdBuff;
-    console_printf("len %d \n", getLength);
     thirdBuff = kmalloc(getLength);
 
-    long otherValidRead = ioread(*forOpen, thirdBuff, getLength);
+    long otherValidRead = ioread(*forOpen, thirdBuff, 120);
 
-    console_printf("Return value from reading four bytes %d \n", otherValidRead);
+    console_printf("Return value from reading 120 bytes %d \n", otherValidRead);
 
     char * a = thirdBuff;
 
@@ -629,8 +624,6 @@ void main(void) {
     ioseek(*forOpen, setPosition);
     ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
     console_printf("Resetting position for future operations: %d \n", getPosition);
-    
-    */
 
 
 }

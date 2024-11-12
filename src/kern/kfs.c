@@ -238,9 +238,9 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     {
         n = length_b - filePos;
     }
-    int blockNum = filePos / FS_BLKSZ;
-    while(n != 0)
+    while(n > 0)
     {
+        int blockNum = filePos / FS_BLKSZ;
         // Get the current data block by looking at the current position and innode #
         ioseek(globalIO, (uint64_t)((FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize))));
         uint64_t blockSpot;
@@ -249,27 +249,31 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // Move to the correct data block specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
-
         // Move to correct block #
         unsigned long leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
+        
         if(leftInBlock <= n) // If we should write the entire data block..
         {
         uint64_t leftAfter;
-        leftAfter = ioread(globalIO, &buf, 4096);    // Do the actual reading into buffer
+        leftAfter = ioread(globalIO, buf, FS_BLKSZ);    // Do the actual reading into buffer
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
         count += FS_BLKSZ;
-        blockNum += 1;
-        filePos = 0;
+        filePos += leftAfter;
         }
         else
         {
+            filePos += n;
             count += n;
-            ioread(globalIO, &buf, n);
-            n = 0;
+            uint64_t leftAfter;
+            leftAfter = ioread(globalIO, buf, n);
+            n = n - leftAfter;
         }
-        
         // After finish read, update filePos
+
     }
+
+    ioctl(io, IOCTL_SETPOS, &filePos);
+
     return count;
 }
 
@@ -282,18 +286,11 @@ Output: long that usually if success equals 0
 
 long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 {
-    struct file_desc_t * const fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
-
+        struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
     ioseek(globalIO, blockNumSize);
-    void * read_numInodes = kmalloc(blockNumSize);
-    uint64_t numInodes;
-    globalIO -> ops -> read(globalIO, &read_numInodes, blockNumSize);
-
-    numInodes = (uint64_t) (read_numInodes);
-
-
-    kfree(read_numInodes);
+    uint32_t numInodes;
+    ioread(globalIO, &numInodes, blockNumSize);
     
     //get the specific innode number
  
@@ -306,64 +303,59 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         return -EBADFMT;
     }
     // Get the length of the file
-    void * read_length_b = kmalloc(blockNumSize);
-    uint64_t length_b;
-    globalIO -> ops -> read(globalIO, &read_length_b, blockNumSize);
-    length_b = (uint64_t) read_length_b;
-
-    kfree(read_length_b);
-
-
+    uint32_t length_b;
+    ioread(globalIO, &length_b, blockNumSize);
+    
     //Get the current position of the file
+    
+    uint64_t filePos;
+    ioctl(io, IOCTL_GETPOS, &filePos);
+    long count = 0;
+ 
+    // If filePos + n is bigger than fileSize, we only read up to the end of the file
 
-    uint64_t filePos = fd -> file_pos;
-
-    // If filePos + n is bigger than fileSize, we only write up to the end of the file
-    unsigned long tempN;
     if(filePos + n > length_b)
     {
-        tempN = length_b - filePos;
+        n = length_b - filePos;
     }
-    else
-    {
-        tempN = n;
-    }
-    while(tempN != 0)
+    while(n > 0)
     {
         int blockNum = filePos / FS_BLKSZ;
         // Get the current data block by looking at the current position and innode #
-        ioseek(globalIO, (FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize)));
-        void * read_blockSpot = kmalloc(blockNumSize);
-        ioread(globalIO, &read_blockSpot, blockNumSize);
-        uint64_t blockSpot = (uint64_t) read_blockSpot;
-
+        ioseek(globalIO, (uint64_t)((FS_BLKSZ + (inode_num * FS_BLKSZ)) + (blockNumSize + (blockNum * blockNumSize))));
+        uint64_t blockSpot;
+        ioread(globalIO, &blockSpot, blockNumSize);
+        
         // Move to the correct data block specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
-        
         // Move to correct block #
-        int leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
-        struct data_block_t * curData = (void*)globalIO - (FS_BLKSZ - leftInBlock);
-        if(leftInBlock <= tempN) // If we should write the entire data block..
+        unsigned long leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
+        
+        if(leftInBlock <= n) // If we should write the entire data block..
         {
-        memcpy(&(curData -> data[FS_BLKSZ-leftInBlock]), buf, (size_t) FS_BLKSZ);
+        uint64_t leftAfter;
 
-        tempN -= leftInBlock;
-        filePos += leftInBlock;
+        leftAfter = iowrite(globalIO, buf, FS_BLKSZ);    // Do the actual reading into buffer
+        n = n - leftAfter;                                  // Decrement n based on # bytes read 
+        count += FS_BLKSZ;
+        filePos += leftAfter;
         }
         else
         {
-            memcpy(&(curData -> data[FS_BLKSZ-leftInBlock]), buf, (size_t) tempN);
-            filePos += tempN;
-            tempN = 0;
+            filePos += n;
+            count += n;
+            uint64_t leftAfter;
+            leftAfter = iowrite(globalIO, buf, n);
+            n = n - leftAfter;
         }
         // After finish read, update filePos
+
     }
-    
-    long numRead = filePos - (fd -> file_pos);
-    fd -> file_pos = filePos;
-    
-    return numRead;
+
+    ioctl(io, IOCTL_SETPOS, &filePos);
+
+    return count;
     
 }
 

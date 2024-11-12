@@ -330,8 +330,6 @@ long iolit_write(struct io_intf *io, const void *buf, size_t len)
     }
     // copy
     memcpy(iol->buf + iol->pos, buf, len); // HERE
-    int *tempVal = (int *)buf;
-    console_printf("buf value inside of write %d \n", *tempVal);
     iol->pos += len; // after we write increase our position
     return len;      // success
 }
