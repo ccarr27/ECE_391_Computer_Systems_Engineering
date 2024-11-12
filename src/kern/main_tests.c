@@ -179,16 +179,35 @@ void main(void) {
     intr_enable();
     timer_start();
 
-    kprintf("pppp\n");
-   result = device_open(&blkio, "blk", 0);
-    kprintf("device opened \n");
+
+    result = device_open(&blkio, "blk", 0);
 
     if (result != 0)
         panic("device_open failed");
+
+    uint64_t length;
+    uint64_t pos;
+
+    (blkio->ops)->ctl(blkio, IOCTL_GETLEN, &length );
+
+    kprintf("length: %d\n", length);
+
+
+    for(int j=0; j<50; j++){
+
+    kprintf("j: %d\n",j);
 
     blkio->ops->read(blkio, buffer, 512);
 
     for (int i =0; i <512;i++){
         kprintf("%d",buffer[i]);
     }
+    kprintf("\n");
+    (blkio->ops)->ctl(blkio, IOCTL_GETPOS, &pos );
+    kprintf("pos: %d\n", pos);
+
+
+    kprintf("\n\n");
+    }
+
 }

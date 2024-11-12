@@ -298,57 +298,54 @@ int thread_join_any(void) {
 
     panic("spurious child_exit signal");
 }
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // Wait for specific child thread to exit. Returns the thread id of the child.
 
-// Function: thread_join
-// Input: int tid
-// Output: int tid 
-// Description: 
-// This function returns the tid for the specific child thread in the input to exit
-// then returns that child's tid. If the child is still runnning, the function will keep looping
-// until either it finds the child and returns or there is no thread with the specific TID or 
-// the calling thread is not the parent of the specified thread then it will return -1. 
+/*
+Inputs: the thread id of a thread
 
+Outputs: -1 if the tid is not a child to the curr_thread. If it is then return the tid
+
+Purpose: Waits for a specific child thread
+
+Description: We want to see see if the tid we pass in corresponds to the child of the Current running thread (CURTHR). First
+check if it is even a valid thread by checking if it is within bounds. Then if it is valid then get the thread by inputing the
+tid into the array of all the threads and name it child. Then check if there is even a thread at that location or if it is even
+a child of the curr thread. If not then return -1. Once we know its a child then we want to check if it has already exited because
+in that case we just want to recycle the thread id and we still return the tid. If the child is still running then wait for the
+condition child_exit. Then after we waited for it to finish we recycle the thread ID and retunr the tid.
+*/
 
 int thread_join(int tid) {
     // FIXME your goes code here
-    struct thread * child;
-    
-    trace("%s(tid=%d) in %s", __func__, tid, CURTHR->name);
 
-    while (1) {
-        int saved_intr_state = intr_enable();
-        // Validate tid and check if the thread exists
-        if (tid <= 0 || tid >= NTHR || thrtab[tid] == NULL) {
-            // Invalid tid or thread has been recycled
-            intr_restore(saved_intr_state);
-            return -1;
-        }
-
-        child = thrtab[tid];
-
-        // Check if the child is actually a child of the current thread
-        if (child->parent != CURTHR) {
-            intr_restore(saved_intr_state);
-            return -1;
-        }
-
-        // Check if the child has already exited
-        if (child->state == THREAD_EXITED) {
-            // Recycle the child thread and return its tid
-            recycle_thread(tid);
-            intr_restore(saved_intr_state);
-            return tid;
-        }
-
-        // Re-enable interrupts before waiting
-        intr_restore(saved_intr_state);
-
-        // Wait for the child to exit
-        condition_wait(&CURTHR->child_exit);
+    //check if it is even a valie thread
+    if(tid<0 || tid >= NTHR){
+        return -1;
     }
+
+    struct  thread *child = thrtab[tid]; //get the thread using the id
+
+    //check if there is a thread at that location:
+    if (child == NULL || child->parent != CURTHR){
+        return -1;
+    }
+
+    //at this point there is a thread and it is the child of our curthr
+
+    //case #1 child alread exited
+    if(child->state == THREAD_EXITED){
+        recycle_thread(tid);
+        return tid;                 //child had already exited so just return the tid
+    }
+
+    //case #2 child still running
+    condition_wait(&CURTHR->child_exit);
+    //we finished waiting
+    recycle_thread(tid);
+    return tid;                 //return tid
 }
+////////////////////////////////////////////////////////////////////////////////
 
 void condition_init(struct condition * cond, const char * name) {
     cond->name = name;
@@ -376,47 +373,30 @@ void condition_wait(struct condition * cond) {
 
     intr_restore(saved_intr_state);
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+Inputs: a conditon struct which holds a list of threads waiting for it
 
-// Function: condition_broadcast
-// Input: struct condition * cond 
-// Output: None 
-// Description: 
-// This function will retrieve all the threads from the condition wait list and move them
-// to the current thread list then change their states from WAITING to READY. After this function
-// the list of threads waiting on the condition is empty. 
+Outputs: void so none but it does change threads from waiting to ready
+
+Purpose: We want to let the threads that are waiting on the condition passed that they can stop waiting and be ready
+
+Description:First we make a thread pointer to use to individually point to each thread on the wait list. We go throught the whole
+list in the cond->wait_list to remove them one by one and then change their state to ready. Also remembering to insert them
+into the ready to run list. We do this until the list is empty.
+*/
 
 void condition_broadcast(struct condition * cond) {
     // FIXME your code goes here
-    
-    trace("%s(cond=<%s>) in %s", __func__, cond->name, CURTHR->name);
-    // Create a temp list to store the threads waiting on cond 
-    struct thread_list temp_list;
+    struct thread *curr_thr; //create a pointer to a thread
 
-    int saved_intr_state = intr_enable();
-
-    // Move all threads from the condition's wait list to the temporary list
-    temp_list.head = cond->wait_list.head;
-    temp_list.tail = cond->wait_list.tail;
-
-    // Clear the condition's wait list
-    tlclear(&cond->wait_list);
-    
-    // Wake up each thread in the temporary list
-    while (!tlempty(&temp_list)) {
-        struct thread * thr = tlremove(&temp_list);
-
-        // Change the thread's state to READY
-        set_thread_state(thr, THREAD_READY);
-
-        // Clear the wait_cond pointer
-        thr->wait_cond = NULL;
-
-        // Insert the thread into the ready_list
-        tlinsert(&ready_list, thr);
+    while(!tlempty(&cond->wait_list)){
+        curr_thr = tlremove(&cond->wait_list); //remove the thread from the condition wait list
+        set_thread_state(curr_thr, THREAD_READY); // change state to ready
+        tlinsert(&ready_list, curr_thr); //placing it on the ready-to-run list
     }
-    // Restore Interrupt
-    intr_restore(saved_intr_state);
 }
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INTERNAL FUNCTION DEFINITIONS
 //
@@ -475,55 +455,38 @@ void recycle_thread(int tid) {
     thrtab[tid] = NULL;
     kfree(thr);
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+Inputs:void so none but we look at the curr thread and go to the next
 
-// Function: suspend_self
-// Input: None
-// Output: None 
-// Description: 
-// This function will suspend the execution of the current thread and switch to another readied thread
-// Only when the current thread is running, it will be placed back to the ready_list. Otherwise it will 
-// do nothing. 
+Outputs: void but we do end up in a new thread
 
+Purpose: the purpose is to switch from the curr running thread into the new thread in the list
+
+Description: First we have to check the current thread and if it was in the running state then we change it to the ready
+state and then insert it into the ready list. Now we accounted for the fact if we needed to put the current thread back
+into the ready state so now we are ready to context switch. We get the next thread by removing the next thread from the
+ready list and putting it into nxt_thread. Then we set the thread state of nxt_thread to running since it will now be running.
+Then we perform the thread_switch so that now nxt_thr will be running.
+*/
 void suspend_self(void) {
     // FIXME your code here
-    // Assert interrupt enable 
-    assert(intr_enabled());
-    // Set current thread
-    struct thread * curr = CURTHR;
 
-    // Save Interrupts
-    int saved_intr_state = intr_enable();
-
-    // Store current thread into ready_list only when it's running
-    if (curr->state == THREAD_RUNNING) {
-        // Change state to READY and insert into ready_list
-        set_thread_state(curr, THREAD_READY);
-        tlinsert(&ready_list, curr);
-    } else {
-        // Current thread in WAITING or EXITED state
-        assert(curr->state == THREAD_WAITING || curr->state == THREAD_EXITED);
-        // Do not insert back into ready_list
+    //first case is if the cur_thr is is in the running state
+    if(CURTHR->state == THREAD_RUNNING){
+        //since the curr thread was running we put it in the reasdy list
+        set_thread_state(CURTHR, THREAD_READY); //set its status to ready
+        tlinsert(&ready_list, CURTHR);
     }
 
-    // Select the next thread to run
-    struct thread * next;
-    if (!tlempty(&ready_list)) {
-        // Remove the next thread from ready_list
-        next = tlremove(&ready_list);
-    } else {
-        // If ready_list is empty, run the idle thread
-        next = &idle_thread;
-    }
+    //get the next thread
+    struct thread *nxt_thr = tlremove(&ready_list);
+    set_thread_state(nxt_thr, THREAD_RUNNING); //since this is the one we will be running
 
-    // Set the next thread's state to RUNNING
-    set_thread_state(next, THREAD_RUNNING);
-
-    // Switch to the next thread
-    _thread_swtch(next);
-
-    // Restore interrupts
-    intr_restore(saved_intr_state);
+    //now context switch to the nxt thread
+    _thread_swtch(nxt_thr);
 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void tlclear(struct thread_list * list) {
     list->head = NULL;
