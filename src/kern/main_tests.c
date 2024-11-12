@@ -192,6 +192,30 @@ void main(void) {
 
     kprintf("length: %d\n", length);
 
+    // ///////////////////
+    // //write
+
+    // for (int i =0; i <512;i++){
+    //     buffer[i] = 1;
+    // }
+
+    // uint64_t posptr = 0;
+
+    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
+
+    // blkio->ops->write(blkio, buffer, 512);
+
+    // //set postion back to 0 to read from 0
+    // posptr = 0;
+
+    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
+
+    // //check postion to make sure it is zero
+    // blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
+
+    // kprintf("pos: %d\n", pos);
+
+    //now we can read
 
     for(int j=0; j<1; j++){
 
@@ -200,7 +224,7 @@ void main(void) {
     blkio->ops->read(blkio, buffer, 512);
 
     for (int i =0; i <512;i++){
-        kprintf("%d",buffer[i]);
+        kprintf("%x",buffer[i]);
     }
     kprintf("\n");
     (blkio->ops)->ctl(blkio, IOCTL_GETPOS, &pos );
@@ -208,6 +232,12 @@ void main(void) {
 
 
     kprintf("\n\n");
+
+
+
+
+
+
     }
 
 }
