@@ -168,10 +168,10 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     fileArray[spot].flags = 1;
     // Set operations for the io_intf (want to use the fs operations)
     static const struct io_ops newOps = {
-        .close = fs_close,
-        .read = fs_read,
-        .write = fs_write,
-        .ctl = fs_ioctl
+        .close = &fs_close,
+        .read = &fs_read,
+        .write = &fs_write,
+        .ctl = &fs_ioctl
     };
 
     fileArray[spot].io_intf.ops = &newOps;
@@ -206,10 +206,8 @@ Output: long that usually if success equals 0
 
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
-    console_printf("globalIO %d \n", globalIO);
     struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
-    console_printf("globalIO %d \n", globalIO);
     ioseek(globalIO, blockNumSize);
     uint32_t numInodes;
     ioread(globalIO, &numInodes, blockNumSize);
@@ -257,7 +255,6 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         if(leftInBlock <= n) // If we should write the entire data block..
         {
         uint64_t leftAfter;
-        console_printf("globalIO %d \n", globalIO);
         leftAfter = ioread(globalIO, &buf, 4096);    // Do the actual reading into buffer
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
         count += FS_BLKSZ;

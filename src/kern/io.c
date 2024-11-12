@@ -54,7 +54,6 @@ long ioread_full(struct io_intf *io, void *buf, unsigned long bufsz)
             return acc;
         acc += cnt;
     }
-
     return acc;
 }
 
@@ -295,7 +294,6 @@ long iolit_read(struct io_intf *io, void *buf, size_t len)
     {
         return -EIO; // If somehow at wrong position in memory, return error
     }
-
     /* make sure the amount we are reading is within our range*/
     if (iol->pos + len >= iol->size)
     {

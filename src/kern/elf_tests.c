@@ -534,9 +534,13 @@ void main(void) {
 
     // Testing file read in entirety using fs_read
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
+    //void * tempBuff;
+    //tempBuff = kmalloc(getLength);
+    //long validRead = ioread_full(*forOpen, tempBuff, getLength);
+
     void * tempBuff;
-    tempBuff = kmalloc(getLength);
-    long validRead = ioread_full(*forOpen, tempBuff, getLength);
+    tempBuff = kmalloc(4096);
+    long validRead = ioread(*forOpen, tempBuff, 4096);
 
     //for loop, compare all bytes using companion_start and buffer
 
