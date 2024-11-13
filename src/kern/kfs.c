@@ -230,12 +230,11 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     ioread(globalIO, &length_b, blockNumSize);
     
     //Get the current position of the file
-    
+
     uint64_t filePos;
     ioctl(io, IOCTL_GETPOS, &filePos);
-    long count = 0;
 
-    console_printf("filepos: %d \n", filePos);
+    long count = 0;
  
     // If filePos + n is bigger than fileSize, we only read up to the end of the file
 
@@ -254,34 +253,32 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // Move to the correct data block specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
-            
         // Move to correct block #
         unsigned long leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
-        
         if(leftInBlock <= n) // If we should write the entire data block..
         {
         uint64_t leftAfter;   
-
-
         leftAfter = ioread(globalIO, buf, leftInBlock);    // Do the actual reading into buffer
+        buf += leftAfter;
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
         count += leftAfter;
         filePos += leftAfter;
+        ioctl(io, IOCTL_SETPOS, &filePos);
         }
         else
         {
-            filePos += n;
-            count += n;
             uint64_t leftAfter;
             leftAfter = ioread(globalIO, buf, n);
+            buf += leftAfter;
             n = n - leftAfter;
+            filePos += leftAfter;
+            count += leftAfter;
+            ioctl(io, IOCTL_SETPOS, &filePos);
         }
         // After finish read, update filePos
-
     }
+    buf -= count;
     //read directly from buffer
-    ioctl(io, IOCTL_SETPOS, &filePos);
-
     return count;
 }
 
@@ -294,13 +291,15 @@ Output: long that usually if success equals 0
 
 long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 {
-        struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
+       struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
+   
     ioseek(globalIO, blockNumSize);
     uint32_t numInodes;
     ioread(globalIO, &numInodes, blockNumSize);
     
     //get the specific innode number
+
  
     uint64_t inode_num = fd -> inode;
 
@@ -315,9 +314,10 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
     ioread(globalIO, &length_b, blockNumSize);
     
     //Get the current position of the file
-    
+
     uint64_t filePos;
     ioctl(io, IOCTL_GETPOS, &filePos);
+
     long count = 0;
  
     // If filePos + n is bigger than fileSize, we only read up to the end of the file
@@ -339,30 +339,30 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
         // Move to correct block #
         unsigned long leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
-        
         if(leftInBlock <= n) // If we should write the entire data block..
         {
-        uint64_t leftAfter;
-
+        uint64_t leftAfter;   
         leftAfter = iowrite(globalIO, buf, leftInBlock);    // Do the actual reading into buffer
+        buf += leftAfter;
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
         count += leftAfter;
         filePos += leftAfter;
+        ioctl(io, IOCTL_SETPOS, &filePos);
         }
         else
         {
-            filePos += n;
-            count += n;
             uint64_t leftAfter;
             leftAfter = iowrite(globalIO, buf, n);
+            buf += leftAfter;
             n = n - leftAfter;
+            filePos += leftAfter;
+            count += leftAfter;
+            ioctl(io, IOCTL_SETPOS, &filePos);
         }
         // After finish read, update filePos
-
     }
-
-    ioctl(io, IOCTL_SETPOS, &filePos);
-
+    buf -= count;
+    //read directly from buffer
     return count;
     
 }
@@ -436,7 +436,7 @@ Output: 0 if successful
 int fs_setpos(file_desc_t* fd, void * arg)
 {
     size_t new_pos = *(size_t *)arg;
-        if (new_pos >= fd->file_size) {
+        if (new_pos > fd->file_size) {
             return -EIO; // Out of bounds, return error
         }
     fd -> file_pos = new_pos;

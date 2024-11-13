@@ -381,7 +381,7 @@ int iolit_ctl(struct io_intf *io, int cmd, void *arg)
     if (cmd == IOCTL_SETPOS) // set pos also called seek
     {
         uint64_t new_pos = *(uint64_t *)arg;
-        if (new_pos >= iol->size)
+        if (new_pos > iol->size)
         {
             return -EIO; // Out of bounds, return error
         }

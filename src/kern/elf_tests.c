@@ -642,11 +642,21 @@ void main(void) {
     ioctl(*forOpen, IOCTL_GETLEN, &getLength);
 
     void * tempBuff;
-    tempBuff = kmalloc(39040);
-    long validRead = ioread_full(*forOpen, tempBuff, getLength);
+    tempBuff = kmalloc(5);
 
+    //uint8_t tempBuff[100];
+    long validRead = ioread(*forOpen, &tempBuff, 5);
+    char * p = tempBuff;
     console_printf("Number of bytes read, should be equal to length: %d \n", validRead);
+    /*
+    for(int x = 0; x < 5; x++)
+    {
+        console_printf("Value from buf %d \n", *p);
+        p += 1;
+    }
+    */
 
+/*
     char * p = tempBuff;
 
     console_printf("Original first value in file %d \n", *p);
@@ -669,6 +679,10 @@ void main(void) {
 
     kfree(tempBuff);
     kfree(p);
+*/
+
+/*
+
 
     console_printf("\n");
     console_printf("Testing fs_write \n");
@@ -730,6 +744,6 @@ void main(void) {
     ioseek(*forOpen, setPosition);
     ioctl(*forOpen, IOCTL_GETPOS, &getPosition);
     console_printf("Resetting position for future operations: %d \n", getPosition);
-
+*/
 
 }
