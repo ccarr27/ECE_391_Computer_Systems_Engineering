@@ -204,15 +204,18 @@ Input: io - io_intf for file struct, buf - place we are reading to, n - number o
 Output: long that usually if success equals 0
 */
 
+
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
     struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
+   
     ioseek(globalIO, blockNumSize);
     uint32_t numInodes;
     ioread(globalIO, &numInodes, blockNumSize);
     
     //get the specific innode number
+
  
     uint64_t inode_num = fd -> inode;
 
@@ -249,12 +252,15 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // Move to the correct data block specified by the innode block
 
         ioseek(globalIO, (FS_BLKSZ + FS_BLKSZ * (numInodes) + FS_BLKSZ * blockSpot + filePos % FS_BLKSZ));
+            
         // Move to correct block #
         unsigned long leftInBlock = FS_BLKSZ - (filePos % FS_BLKSZ); //Tells us how many bytes left to read in the block before finishing the block
         
         if(leftInBlock <= n) // If we should write the entire data block..
         {
-        uint64_t leftAfter;
+        uint64_t leftAfter;   
+
+
         leftAfter = ioread(globalIO, buf, leftInBlock);    // Do the actual reading into buffer
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
         count += leftAfter;
@@ -271,7 +277,7 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // After finish read, update filePos
 
     }
-
+    //read directly from buffer
     ioctl(io, IOCTL_SETPOS, &filePos);
 
     return count;

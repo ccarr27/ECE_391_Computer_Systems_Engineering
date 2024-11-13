@@ -420,6 +420,7 @@ void main(void) {
 
      intr_enable();
     timer_start();
+    /*
 
    result = device_open(&blkio, "blk", 0);
 
@@ -531,7 +532,7 @@ void main(void) {
     */
 
 
-    /*
+    
 
     // Testing kfs.c
 
@@ -551,6 +552,7 @@ void main(void) {
     console_printf("\n");
 
     //Test fs_mount on invalid io_intf
+    
 
     struct io_lit * null_io_fs = kmalloc(sizeof(struct  io_lit));                 
     struct io_intf * io_null;
@@ -568,6 +570,7 @@ void main(void) {
     kfree(nullBuf);
     kfree(io_null);
     kfree(null_io_fs);
+    
 
     int testMount;
     testMount = fs_mount(io_fs);
@@ -575,6 +578,7 @@ void main(void) {
     // fs_mount returns 0 if the mount is successful
 
     console_printf("testing fs_mount on valid io: %d \n", testMount);
+
 
 
     console_printf("\n");
@@ -729,4 +733,3 @@ void main(void) {
 
 
 }
-*/
