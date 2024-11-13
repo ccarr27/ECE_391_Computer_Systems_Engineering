@@ -439,65 +439,80 @@ void main(void) {
 
     if (result != 0)
         panic("Could not open ser1");
-    
-    shell_main(termio);
-}
 
-void shell_main(struct io_intf * termio_raw) {
-    struct io_term ioterm;
-    struct io_intf * termio;
+
+    
+    // shell_main(termio);
+
+    console_printf("start addr %x \n", _companion_f_start);
+    console_printf("end addr %x \n", _companion_f_end);
+    blkio = iolit_init(lit, _companion_f_start, (size_t)(_companion_f_end- _companion_f_start));
     void (*exe_entry)(struct io_intf*);
-    struct io_intf * exeio;
-    char cmdbuf[9];
-    int tid;
-    int result;
+    // struct io_intf * exeio;
 
-    termio = ioterm_init(&ioterm, termio_raw);
 
-    ioputs(termio, "Enter executable name or \"exit\" to exit");
+    console_printf("we got right before elf_load \n");
+    result = elf_load(blkio,  &exe_entry);
+
+    console_printf("elf return result: %d \n", result);
+    console_printf("elf exe_entry: %lx \n", exe_entry);
+}
+
+// void shell_main(struct io_intf * termio_raw) {
+//     struct io_term ioterm;
+//     struct io_intf * termio;
+//     void (*exe_entry)(struct io_intf*);
+//     struct io_intf * exeio;
+//     char cmdbuf[9];
+//     int tid;
+//     int result;
+
+//     termio = ioterm_init(&ioterm, termio_raw);
+
+//     ioputs(termio, "Enter executable name or \"exit\" to exit");
     
 
-    for (;;) {
-        ioprintf(termio, "CMD> ");
-        ioterm_getsn(&ioterm, cmdbuf, sizeof(cmdbuf));
+//     for (;;) {
+//         ioprintf(termio, "CMD> ");
+//         ioterm_getsn(&ioterm, cmdbuf, sizeof(cmdbuf));
 
-        if (cmdbuf[0] == '\0')
-            continue;
+//         if (cmdbuf[0] == '\0')
+//             continue;
 
-        if (strcmp("exit", cmdbuf) == 0)
-            return;
+//         if (strcmp("exit", cmdbuf) == 0)
+//             return;
         
-        result = fs_open(cmdbuf, &exeio);
+//         result = fs_open(cmdbuf, &exeio);
 
-        if (result < 0) {
-            if (result == -ENOENT)
-                ioprintf(termio, "%s: File not found\n", cmdbuf);
-            else
-                ioprintf(termio, "%s: Error %d\n", cmdbuf, -result);
-            continue;
-        }
+//         if (result < 0) {
+//             if (result == -ENOENT)
+//                 ioprintf(termio, "%s: File not found\n", cmdbuf);
+//             else
+//                 ioprintf(termio, "%s: Error %d\n", cmdbuf, -result);
+//             continue;
+//         }
 
-        debug("Calling elf_load(\"%s\")", cmdbuf);
+//         debug("Calling elf_load(\"%s\")", cmdbuf);
 
-        result = elf_load(exeio, &exe_entry);
+//         result = elf_load(exeio, &exe_entry);
 
-        debug("elf_load(\"%s\") returned %d", cmdbuf, result);
+//         debug("elf_load(\"%s\") returned %d", cmdbuf, result);
 
-        if (result < 0) {
-            ioprintf(termio, "%s: Error %d\n", -result);
+//         if (result < 0) {
+//             ioprintf(termio, "%s: Error %d\n", -result);
         
-        } else {
-            tid = thread_spawn(cmdbuf, (void*)exe_entry, termio_raw);
+//         } else {
+//             tid = thread_spawn(cmdbuf, (void*)exe_entry, termio_raw);
 
-            if (tid < 0)
-                ioprintf(termio, "%s: Error %d\n", -result);
-            else
-                thread_join(tid);
-        }
+//             if (tid < 0)
+//                 ioprintf(termio, "%s: Error %d\n", -result);
+//             else
+//                 thread_join(tid);
+//         }
 
-        ioclose(exeio);
-    }
-}
+//         ioclose(exeio);
+//     }
+// }
 
 
     /*

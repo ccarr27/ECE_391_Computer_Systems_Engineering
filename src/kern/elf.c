@@ -216,7 +216,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
 
     //set the rentry point of execution
     *entryptr = (void (*)(struct io_intf *)) elf_header.e_entry;
-    console_printf("entry %x \n", entryptr);
+    console_printf("e_entry:%x \n", elf_header.e_entry);
     //close the file since we extracted what we needed
     // ioclose(io);
 
