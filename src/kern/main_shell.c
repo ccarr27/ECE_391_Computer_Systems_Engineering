@@ -130,13 +130,13 @@ void shell_main(struct io_intf * termio_raw) {
         debug("elf_load(\"%s\") returned %d", cmdbuf, result);
 
         if (result < 0) {
-            ioprintf(termio, "%s: Error %d\n", -result);
+            ioprintf(termio, "%s: Error %d\n", cmdbuf, -result);
         
         } else {
             tid = thread_spawn(cmdbuf, (void*)exe_entry, termio_raw);
 
             if (tid < 0)
-                ioprintf(termio, "%s: Error %d\n", -result);
+                ioprintf(termio, "%s: Error %d\n", cmdbuf, -result);
             else
                 thread_join(tid);
         }

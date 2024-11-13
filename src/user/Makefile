@@ -17,7 +17,7 @@ CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -fno-asynchronous-unwind-tables
 CFLAGS += -I.
 
-# all: bin/hello
+all: bin/hello
 
 # bin/hello: $(ULIB_OBJS) hello.o
 # 	$(LD) -T user.ld -o $@ $^
@@ -28,12 +28,12 @@ CFLAGS += -I.
 # 	rm -rf *.o *.elf *.asm bin/hello
 
 
-all: bin/testio
+all: bin/testhell
 
-bin/testio: $(ULIB_OBJS) testio.o
+bin/testhell: $(ULIB_OBJS) testhell.o
 	$(LD) -T user.ld -o $@ $^
 
 
 
 clean:
-	rm -rf *.o *.elf *.asm bin/testio
+	rm -rf *.o *.elf *.asm bin/testhell
