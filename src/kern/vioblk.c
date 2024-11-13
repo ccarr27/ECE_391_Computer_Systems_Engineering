@@ -279,8 +279,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     // dev->vq.used.flags = 0;
     // dev->vq.used.idx = 0;
 
-    // Initialize thread condition   kprintf("%d \n",num_queues);
-    condition_init(&dev->vq.used_updated, "used_condition");
+
 
     // Register the ISR
     intr_register_isr(dev->irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
@@ -313,6 +312,9 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 
     virtio_enable_virtq(dev->regs, 0); //id is 0
     intr_enable_irq(dev->irqno);
+
+    // Initialize thread condition   kprintf("%d \n",num_queues);
+    condition_init(&dev->vq.used_updated, "used_updated");
 
     // Initialize IO interface
     dev->io_intf.ops = &vioblk_ops;
@@ -394,9 +396,12 @@ long vioblk_read(
         // Determine how much to read in this iteration
         to_read = (blksz - sector_offset);
 
-        if (to_read >= ((uint64_t)bufsz - total_read))
+        if (to_read < ((uint64_t)bufsz - total_read))
         {
-            to_read = (uint64_t)bufsz - total_read;
+            to_read = (blksz - sector_offset);
+        }
+        else{
+            to_read = ((uint64_t)bufsz - total_read);
         }
 
         // Prepare request header
@@ -410,7 +415,7 @@ long vioblk_read(
         dev->vq.desc[0].addr = (uint64_t)&dev->vq.desc[1];
         dev->vq.desc[0].len = sizeof(struct virtq_desc) * 3;
         dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
-        dev->vq.desc[0].next = 0;
+        dev->vq.desc[0].next = -1; //technically its own thing
 
         // header
         dev->vq.desc[1].addr = (uint64_t)&dev->vq.req_header;
@@ -429,6 +434,7 @@ long vioblk_read(
         dev->vq.desc[3].addr = (uint64_t)&dev->vq.req_status; // status
         dev->vq.desc[3].len = sizeof(dev->vq.req_status);
         dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+        dev->vq.desc[3].next = -1; //nothing next
 
         // prepare flags
         // dev->vq.avail.flags = 0;

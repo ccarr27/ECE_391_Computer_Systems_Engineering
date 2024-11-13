@@ -80,7 +80,7 @@ void main(void) {
 
     int tid = thread_spawn("trek", (void*)entry_func, termio);
 
-    if(res ==0){
+    if(res == 0){
         console_puts("elf is good\n");
         entry_func(termio);
     }
