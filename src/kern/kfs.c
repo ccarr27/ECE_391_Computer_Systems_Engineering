@@ -255,9 +255,9 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         if(leftInBlock <= n) // If we should write the entire data block..
         {
         uint64_t leftAfter;
-        leftAfter = ioread(globalIO, buf, FS_BLKSZ);    // Do the actual reading into buffer
+        leftAfter = ioread(globalIO, buf, leftInBlock);    // Do the actual reading into buffer
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
-        count += FS_BLKSZ;
+        count += leftAfter;
         filePos += leftAfter;
         }
         else
@@ -336,9 +336,9 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         {
         uint64_t leftAfter;
 
-        leftAfter = iowrite(globalIO, buf, FS_BLKSZ);    // Do the actual reading into buffer
+        leftAfter = iowrite(globalIO, buf, leftInBlock);    // Do the actual reading into buffer
         n = n - leftAfter;                                  // Decrement n based on # bytes read 
-        count += FS_BLKSZ;
+        count += leftAfter;
         filePos += leftAfter;
         }
         else
