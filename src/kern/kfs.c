@@ -234,6 +234,8 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     uint64_t filePos;
     ioctl(io, IOCTL_GETPOS, &filePos);
     long count = 0;
+
+    console_printf("filepos: %d \n", filePos);
  
     // If filePos + n is bigger than fileSize, we only read up to the end of the file
 

@@ -185,10 +185,15 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
                 return -6;
             }
 
+            console_printf("p_offset: %d \n", prog_header.p_offset);
             //we know we are within range so seek to the beginning of the file
             if(ioseek(io, prog_header.p_offset) < 0){ //make sure we dont get an error
                 return -7;
             }
+
+            int pos;
+
+            
 
 
             // long readreturn = ioread(io, v_addr, prog_header.p_filesz);
@@ -198,11 +203,20 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
 
 
 
+            io->ops->ctl(io, IOCTL_GETPOS, &pos);
 
+            console_printf("pos before read: %d \n", pos);
+            console_printf("we have to read: %d \n", prog_header.p_filesz);
             //load this file into memory
+            // console_printf("p_filesz: %d \n", prog_header.p_filesz);
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
             }
+
+            io->ops->ctl(io, IOCTL_GETPOS, &pos);
+
+            console_printf("pos after read: %d \n", pos);
+            // console_printf("we read: %d \n", prog_header.p_filesz);
 
             //initialize everything else to 0
             

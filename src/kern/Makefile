@@ -63,6 +63,9 @@ elf_test.elf: $(CORE_OBJS) elf_tests.o companion.o
 iotest.elf: $(CORE_OBJS) iolit_test.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
+testelf.elf: $(CORE_OBJS) testelf.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
 
 run-shell: shell.elf
 	$(QEMU) $(QEMUOPTS)
@@ -86,6 +89,9 @@ debug-elf: elf_test.elf
 
 run-iotest: iotest.elf
 	$(QEMU) $(QEMUOPTS)
+
+run-testelf: testelf.elf
+	$(QEMU) $(QEMUOPTS) 
 
 
 
