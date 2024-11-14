@@ -1,10 +1,3 @@
-.equ CONTEXT_OFFSET, 8       # Offset needed for thread context structure
-.equ s0_OFFSET, 0            # Place in thread context structure for s0
-.equ s1_OFFSET, 1            # Place in thread context structure for s1
-.equ RA_OFFSET, 12           # Place in thread context structure for the return address
-.equ SP_OFFSET, 13           # Place in thread context structure for the stack pointer
-
-
 # thrasm.s - Special functions called from thread.c
 #
 
@@ -76,107 +69,78 @@ _thread_swtch:
 # void _thread_setup (
 #      struct thread * thr,             in a0
 #      void * sp,                       in a1
-#      void (*start)(void * arg),       in a2
+#      void (*start)(void *, void *),   in a2
 #      void * arg)                      in a3
 #
 # Sets up the initial context for a new thread. The thread will begin execution
-# in /start/, receiving /arg/ as the first argument. 
-
-
-/*
-void _thread_setup (struct thread * thr, void * sp, void (*start)(void * arg), void * arg)
-Inputs:
-thr - a pointer to the thread we are initializing the context for
-sp - the stack pointer for the thread we are setting up
-start(void * arg) - the start function for the thread we are setting up
-arg - the argument for the start function
-
-Outputs:
-None
-
-Effects:
-Sets up the thread context for the given thread, arranges for the start function to start execution when it is scheduled, and allows for returning to
-start to be equivalent to calling thread_exit.
-
-Description:
-_thread_setup has three main goals. The first thing it does it initialize the thread_context structure for the given thread. thread_context is the 
-first member of the thread struct, so we use the pointer to the thread to initialize values for the thread_context. We must arrange for the thread
-to start execution using the start function whenever _thread_swtch is called, and we must use the provided argument in the start function. To 
-ensure that this happens, we send the start function and the argument into the first two s registers of the thread context structure. The other s registers 
-will not be changed, so we don't need to use them for any more values. We use the provided stack pointer as the stack pointer in the thread context structure.
-We also need to ensure that returning from start is equivalent to calling thread_exit, which is what our _thread_helper label is for. We load the address
-of _thread_helper into the return address of the thread context structure, so that _thread_swtch returns to our helper function. 
-
-*/
+# in /start/, receiving the five arguments passed to _thread_set after /start/.
 
 _thread_setup:
+        # Write initial register values into struct thread_context, which is the
+        # first member of struct thread.
         
-        sd a2, s0_OFFSET*CONTEXT_OFFSET(a0)          # Place the start function in s0 of the thread context structure
+        sd      a1, 13*8(a0)    # Initial sp
+        sd      a2, 11*8(a0)    # s11 <- start
+        sd      a3, 0*8(a0)     # s0 <- arg 0
+        sd      a4, 1*8(a0)     # s1 <- arg 1
+        sd      a5, 2*8(a0)     # s2 <- arg 2
+        sd      a6, 3*8(a0)     # s3 <- arg 3
+        sd      a7, 4*8(a0)     # s4 <- arg 4
 
-        sd a3, s1_OFFSET*CONTEXT_OFFSET(a0)          # Place the argument for the start function in s1 of the thread context structure
+        # put address of thread entry glue into t1 and continue execution at 1f
 
-        la t0, _thread_helper                        # Get the address for our helper thread
+        jal     t0, 1f
 
-        sd t0, RA_OFFSET*CONTEXT_OFFSET(a0)          # Save the helper thread address in the ra for the thread_context
+        # The glue code below is executed when we first switch into the new thread
 
-        sd a1, SP_OFFSET*CONTEXT_OFFSET(a0)          # Save the stack pointer into the thread_context stack pointer
+        la      ra, thread_exit # child will return to thread_exit
+        mv      a0, s0          # get arg argument to child from s0
+        mv      a1, s1          # get arg argument to child from s0
+        mv      fp, sp          # frame pointer = stack pointer
+        jr      s11             # jump to child entry point (in s1)
+
+1:      # Execution of _thread_setup continues here
+
+        sd      t0, 12*8(a0)    # put address of above glue code into ra slot
 
         ret
 
-/*
+        .global _thread_finish_jump
+        .type   _thread_finish_jump, @function
 
-void _thread_helper(void)
+# void __attribute__ ((noreturn)) _thread_finish_jump (
+#      struct thread_stack_anchor * stack_anchor,
+#      uintptr_t usp, uintptr_t upc, ...);
 
-Description:
 
-Inputs:
-None
+_thread_finish_jump:
+        # While in user mode, sscratch points to a struct thread_stack_anchor
+        # located at the base of the stack, which contains the current thread
+        # pointer and serves as our starting stack pointer.
 
-Outputs:
-None
-
-Effects:
-_thread_helper calls the start function for a thread, with the correct argument in a0. It then
-calls thread_exit immediately after exiting the start function.
-
-Description:
-_thread_helper helps complete the functionality of _thread_setup. Once we have returned from _thread_swtch, we end up in _thread_helper,
-where we want to call the start function. Since the start function takes in the argument from _thread_setup, which was stored in s1, we must 
-store the argument value into a1 before calling the start function, which is stored in s0. We use jalr so that the start function returns back
-to _thread_helper after execution. We then call thread_exit, which completes the desired effects of _thread_setup.
-
-*/
-
-_thread_helper:
-
-        add a0, s1, x0          # Put the argument (which is stored in s1 of the thread context) into a0 so it is a parameter when we call the start function
-
-        jalr ra, s0, 0          # go to start and execute, and then come back to _thread_helper after it returns
-
-        call thread_exit        # Go to thread_exit, since we want returning from start to be equal to calling thread_exit
-
-        ret                     # Should never happen
+        # TODO: FIXME your code here
 
 
 # Statically allocated stack for the idle thread.
 
-        .section        .data.idle_stack
-        .align          16
+        .section        .data.stack, "wa", @progbits
+        .balign          16
         
         .equ            IDLE_STACK_SIZE, 1024
-        .equ            IDLE_GUARD_SIZE, 0
 
-        .global         _idle_stack
-        .type           _idle_stack, @object
-        .size           _idle_stack, IDLE_STACK_SIZE
+        .global         _idle_stack_lowest
+        .type           _idle_stack_lowest, @object
+        .size           _idle_stack_lowest, IDLE_STACK_SIZE
 
-        .global         _idle_guard
-        .type           _idle_guard, @object
-        .size           _idle_guard, IDLE_GUARD_SIZE
+        .global         _idle_stack_anchor
+        .type           _idle_stack_anchor, @object
+        .size           _idle_stack_anchor, 2*8
 
-_idle_stack:
+_idle_stack_lowest:
         .fill   IDLE_STACK_SIZE, 1, 0xA5
 
-_idle_guard:
-        .fill   IDLE_GUARD_SIZE, 1, 0x5A
+_idle_stack_anchor:
+        .global idle_thread # from thread.c
+        .dword  idle_thread
+        .fill   8
         .end

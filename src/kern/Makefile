@@ -1,3 +1,5 @@
+# Based on xv6-riscv Makefile; see LICENSE.
+
 TOOLPREFIX=riscv64-unknown-elf-
 QEMU=qemu-system-riscv64
 
@@ -13,21 +15,20 @@ CORE_OBJS = \
 	string.o \
 	trapasm.o \
 	intr.o \
+	plic.o \
+	timer.o \
+	thread.o \
+	thrasm.o \
+	ezheap.o \
 	io.o \
 	device.o \
+	uart.o \
 	virtio.o \
 	vioblk.o \
 	console.o \
-	plic.o \
-	thread.o \
-	timer.o \
-	ezheap.o \
-	uart.o \
-	thrasm.o \
-	elf.o \
-	kfs.o
-
-	# Add the names of new objects here
+	excp.o \
+	memory.o
+	# Add more object files here
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
@@ -49,63 +50,24 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
-all: shell.elf
+all: kernel.elf
 
-shell.elf: $(CORE_OBJS) main_shell.o companion.o
+kernel.elf: $(CORE_OBJS) main.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
-test.elf: $(CORE_OBJS) main_tests.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-elf_test.elf: $(CORE_OBJS) elf_tests.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-iotest.elf: $(CORE_OBJS) iolit_test.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-testelf.elf: $(CORE_OBJS) testelf.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-
-run-shell: shell.elf
+run-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS)
 
-debug-shell: shell.elf
+debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-debug-test: test.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-	
-# You might want to add more here
-
-run-test: test.elf
-	$(QEMU) $(QEMUOPTS)
-
-run-elf_test: elf_test.elf
-	$(QEMU) $(QEMUOPTS) 
-
-debug-elf: elf_test.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-run-iotest: iotest.elf
-	$(QEMU) $(QEMUOPTS)
-
-run-testelf: testelf.elf
-	$(QEMU) $(QEMUOPTS) 
-
-
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
 	rm -rf *.o *.elf *.asm
 	if [ -f companion.o.save ]; then mv companion.o.save companion.o; fi
 
-clean_comp:
-	rm -rf *.o *.elf *.asm companion.o
-
+# This will load the trek file into your kernel memory, via kernel.ld
+# `mkcomp.sh`, as well as the documentation, contain discussion
 companion.o:
 	if [ -f ../user/trek ]; then sh ./mkcomp.sh ../user/trek; fi
 	if ! [ -f ../user/trek ]; then sh ./mkcomp.sh; fi
-
-
-
