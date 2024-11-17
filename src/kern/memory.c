@@ -1,6 +1,15 @@
 // memory.c - Memory management
 //
 
+/*
+QUESTIONS TO ASK DURING OH:
+- Implementation of linked list (not adding padding value yet?)
+- How to reclaim physical pages mapped by memory space (what does reclaim mean, how do we find this?)
+- How to get page using void * and is way of adding it back to list okay? Need to change values?
+- What do we do with vma? Are we supposed to just use subtables in reverse to map vma to a new physical address using mem_alloc_page
+- For range functions, do we just do a for loopand increment virtual address each time for size?
+*/
+
 #ifndef TRACE
 #ifdef MEMORY_TRACE
 #define TRACE
@@ -415,7 +424,7 @@ void memory_handle_page_fault(const void * vptr)
         mem_alloc_page();
     }
     // If in S mode and U = 1 and stats.SUM = 0, page fault
-    
+
 }
 // INTERNAL FUNCTION DEFINITIONS
 //
