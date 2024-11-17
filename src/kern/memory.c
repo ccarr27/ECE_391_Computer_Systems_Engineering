@@ -33,6 +33,8 @@
 char memory_initialized = 0;
 uintptr_t main_mtag;
 
+void * start; // Global variable to hold address space
+
 // IMPORTED VARIABLE DECLARATIONS
 //
 
@@ -107,6 +109,8 @@ static inline void sfence_vma(void);
 //
 
 static union linked_page * free_list;
+
+union linked_page * not_free_list;
 
 static struct pte main_pt2[PTE_CNT]
     __attribute__ ((section(".bss.pagetable"), aligned(4096)));
@@ -232,6 +236,20 @@ void memory_init(void) {
     // Put free pages on the free page list
     // TODO: FIXME implement this (must work with your implementation of
     // memory_alloc_page and memory_free_page).
+
+    // Set page equal to start of free page list
+    page = free_list;
+    start = RAM_START;
+
+    for(int x = 0; x < page_cnt; x++)
+    {
+        // Do we need to set value of padding here??
+
+        // Create page_cnt # of nodes
+        union linked_page * nextPage = kmalloc(sizeof(union linked_page *));
+        page -> next = nextPage;
+        page = page -> next;
+    }
     
     // Allow supervisor to access user memory. We could be more precise by only
     // enabling it when we are accessing user memory, and disable it at other
@@ -242,7 +260,163 @@ void memory_init(void) {
     memory_initialized = 1;
 }
 
+void memory_space_reclaim(void)
+{
+    // Get active memory space
+    //uintptr_t activeSpace = active_space_mtag();
+    //struct pte * activeRoot = active_space_root();
 
+    // Reclaim all physical pages mapped by memory space that aren't part of global mapping
+    // How to do this?
+
+
+    // Switch active memory space to main memory space
+    memory_space_switch(main_mtag);
+}
+
+void *memory_alloc_page(void)
+{
+    // Panics if no free pages available
+    if(free_list == NULL)
+    {
+        panic("No free pages available");
+    }
+
+    union linked_page * newPage = free_list;
+    free_list = free_list -> next;
+
+    // Need to make pp, make data page pp, virtual adress = pp, return it
+    // Returns value in RAM range, so VMA = PMA
+    //char pad[PAGE_SIZE];
+    char * pad = (char *) start;
+
+    for(size_t x = 0; x < (size_t) sizeof(pad); x++)
+    {
+        newPage -> padding[x] = pad[x];
+    }
+
+    // Add new page to not free list
+    union linked_page * check = not_free_list;
+    if(check == NULL)
+    {
+        check = newPage;
+    }
+    else
+    {
+        while(check -> next != NULL)
+        {
+            check = check -> next;
+        }
+        check = newPage;
+    }
+
+    // Move to next physical address after using it for page here
+
+    // Set page table to pp
+
+    void * pp = pagenum_to_pageptr((uintptr_t) start);
+    start += 1;
+    return pp;
+}
+
+void memory_free_page(void *pp)
+{
+    // Get page using memory tables and pp
+    uintptr_t temp = pageptr_to_pagenum(pp);
+    union linked_page * check = not_free_list;
+    union linked_page * remove;
+    while(check -> next != NULL)
+    {
+        if(check -> next -> padding == (char *) temp)
+        {
+            remove = check -> next;
+            check -> next = check -> next -> next;
+            break;
+        }
+        else
+        {
+            check = check -> next;
+        }
+    }
+    remove -> next = free_list;
+    free_list = remove;
+}
+
+void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
+{
+    // Somehow get vma
+    void * newPP = memory_alloc_page();
+
+    struct pte newPTE = leaf_pte(newPP, rwxug_flags);
+    void * ret = (void *) newPTE.ppn;
+    return ret;
+}
+
+void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug_flags)
+{
+    void * firstAdr;
+    for(uintptr_t x = 0; x < size; x++)
+    {
+        if(x == 0)
+        {
+        firstAdr = memory_alloc_and_map_page(vma, rwxug_flags);
+        }
+        else
+        {
+        memory_alloc_and_map_page(vma, rwxug_flags);
+        }
+    }
+    return firstAdr;
+}
+
+void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
+{
+    //Get pte for vp
+    struct pte temp;
+    temp.flags = rwxug_flags;
+}
+
+void memory_set_range_flags(const void *vp, size_t size, uint8_t rwxug_flags)
+{
+    void * tempVP = vp;
+    for(size_t x = 0; x < size; x++)
+    {
+        memory_set_page_flags(tempVP, rwxug_flags);
+        tempVP += 1;
+    }
+}
+
+void memory_unmap_and_free_user(void)
+{
+    // unmap and free all user space pages
+
+}
+
+/*
+EXTRA CREDIT FUNCTIONS
+int memory_validate_vptr_len ( const void * vp, size_t len, uint_fast8_t rwxug_flags);
+
+int memory_validate_vstr (const char * vs, uint_fast8_t ug_flags);
+*/
+
+void memory_handle_page_fault(const void * vptr)
+{
+    // Get pte for vptr
+    struct pte temp;
+
+    // If v flag == 0 and try to translate, page fault exception
+    if(temp.flags && 0x0 == 0)
+    {
+        mem_alloc_page();
+    }
+    // If in U mode and U = 0, translate
+    else if(temp.flags && 0x0 << 2 == 0)
+    {
+        mem_alloc_page();
+    }
+    // If in S mode and U = 1 and stats.SUM = 0, page fault
+    
+}
 // INTERNAL FUNCTION DEFINITIONS
 //
 
