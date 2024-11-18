@@ -263,8 +263,9 @@ void memory_init(void) {
         //the space between heap_end and RAM_END should already be left intentionally alone in order for us to use
         //so just create a pointer to each space
 
-        union linked_page * nextPage = (union linked_page *)page + PAGE_SIZE;
-        assert(nextPage <= RAM_END); //will let us know if we went past the space
+        //union linked_page * nextPage = (union linked_page *)page + PAGE_SIZE;
+        union linked_page * nextPage = kmalloc(PAGE_SIZE);
+        //assert(nextPage <= RAM_END); //will let us know if we went past the space
         page->next = nextPage;
         page = page->next;
     }
@@ -386,6 +387,8 @@ void *memory_alloc_page(void)
     union linked_page * newPage = free_list;
     free_list = free_list -> next;
 
+    //newPage -> next = NULL;
+
     return (void *) newPage;
 
 }
@@ -410,6 +413,8 @@ void memory_free_page(void *pp)
     //add to the free list
     new_free_list_head->next = free_list;
     free_list = new_free_list_head;
+
+
 }
 
 void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
@@ -470,7 +475,7 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
     temp->flags = rwxug_flags | PTE_A | PTE_D | PTE_V;
 }
 
-void memory_set_range_flags(const void *vp, size_t size, uint8_t rwxug_flags)
+void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flags)
 {
     int numPages = size / PAGE_SIZE;
     for(int x = 0; x < numPages; x++)
@@ -591,17 +596,17 @@ int memory_validate_vstr (const char * vs, uint_fast8_t ug_flags);
 void memory_handle_page_fault(const void * vptr)
 {
     // Get pte for vptr
-    struct pte temp;
+    struct pte * temp = (struct pte *) vptr; 
 
     // If v flag == 0 and try to translate, page fault exception
-    if(temp.flags && 0x0 == 0)
+    if(temp -> flags | !PTE_V)
     {
-        mem_alloc_page();
+        memory_alloc_page();
     }
     // If in U mode and U = 0, translate
-    else if(temp.flags && 0x0 << 2 == 0)
+    else if(temp -> flags | !PTE_U)
     {
-        mem_alloc_page();
+        memory_alloc_page();
     }
     // If in S mode and U = 1 and stats.SUM = 0, page fault
 
@@ -618,7 +623,7 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create)
     
     }
     */
-
+   return NULL;
 }
 static inline int wellformed_vma(uintptr_t vma) {
     // Address bits 63:38 must be all 0 or all 1

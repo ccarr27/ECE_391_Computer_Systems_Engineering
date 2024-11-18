@@ -37,7 +37,27 @@ void main(void) {
 
     console_init();
     memory_init();
-    intr_init();
+    //intr_init();
+
+    /*
+    Trying to test virtual memory 
+    */
+    console_printf("testing alloc page \n");
+
+    void * test = memory_alloc_page();
+
+    console_printf("testing free page \n");
+
+    console_printf("alloc page before free %d \n", test);
+
+    memory_free_page(&test);
+
+    console_printf("alloc page after free %d \n", test);        // Unsure if this means it worked
+
+    
+
+
+    /*
     devmgr_init();
     thread_init();
     procmgr_init();
@@ -79,4 +99,5 @@ void main(void) {
     
     result = process_exec(initio);
     panic(INIT_PROC ": process_exec failed");
+    */
 }
