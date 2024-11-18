@@ -78,9 +78,9 @@ struct pte {
 // INTERNAL MACRO DEFINITIONS
 //
 
-#define VPN2(vma) (((vma) >> (9+9+12)) & 0x1FF)
-#define VPN1(vma) (((vma) >> (9+12)) & 0x1FF)
-#define VPN0(vma) (((vma) >> 12) & 0x1FF)
+#define VPN2(vma) (((vma) >> (9+9+12)) & 0x1FF)     // gets VPN[2]
+#define VPN1(vma) (((vma) >> (9+12)) & 0x1FF)       //gets VPN[1]
+#define VPN0(vma) (((vma) >> 12) & 0x1FF)           //gets the VPN[0]
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
 // INTERNAL FUNCTION DECLARATIONS
@@ -119,6 +119,8 @@ static inline void sfence_vma(void);
 
 static union linked_page * free_list;
 
+//made the not free list
+
 union linked_page * not_free_list;
 
 static struct pte main_pt2[PTE_CNT]
@@ -144,7 +146,7 @@ void memory_init(void) {
     void * heap_start;
     void * heap_end;
     size_t page_cnt;
-    uintptr_t pma;
+    uintptr_t pma;      
     const void * pp;
 
     trace("%s()", __func__);
@@ -246,19 +248,27 @@ void memory_init(void) {
     // TODO: FIXME implement this (must work with your implementation of
     // memory_alloc_page and memory_free_page).
 
+
     // Set page equal to start of free page list
     page = free_list;
-    start = RAM_START;
+    start = RAM_START;      //what this a for?
 
+    // Create page_cnt # of nodes
     for(int x = 0; x < page_cnt; x++)
     {
-        // Do we need to set value of padding here??
+        // Do we need to set value of padding here??        //pading should never have a value it is only to ensure spacing
 
-        // Create page_cnt # of nodes
-        union linked_page * nextPage = kmalloc(sizeof(union linked_page *));
-        page -> next = nextPage;
-        page = page -> next;
+        //the space between heap_end and RAM_END should already be left intentionally alone in order for us to use
+        //so just create a pointer to each space
+
+        union linked_page * nextPage = (union linked_page *)page + PAGE_SIZE;
+        assert(nextPage <= RAM_END); //will let us know if we went past the space
+        page->next = nextPage;
+        page = page->next;
     }
+    page->next = NULL;  //last next should be NULL so we know we're at the end when traversinag the linked list later on
+
+
     
     // Allow supervisor to access user memory. We could be more precise by only
     // enabling it when we are accessing user memory, and disable it at other
@@ -272,15 +282,93 @@ void memory_init(void) {
 void memory_space_reclaim(void)
 {
     // Get active memory space
-    //uintptr_t activeSpace = active_space_mtag();
-    //struct pte * activeRoot = active_space_root();
+    uintptr_t old_mtag = active_space_mtag();
 
-    // Reclaim all physical pages mapped by memory space that aren't part of global mapping
-    // How to do this?
-
+    //Get the old root page table
+    struct pte *old_root_table = mtag_to_root(old_mtag);
 
     // Switch active memory space to main memory space
     memory_space_switch(main_mtag);
+    
+    //for all the entries in the level 2 (root) page table
+    for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
+
+
+        //get the current pt1 entry
+        struct pte curr_pt2_entry = old_root_table[vpn2];
+
+        //check if it is active
+        if((curr_pt2_entry.flags & PTE_V) == 0 ){
+            continue;   //valid flag was zero so nothing to see here
+        }
+
+        //at this point it is active/valid
+
+        //we want to only reclaim non-global so skip if global
+        if(curr_pt2_entry.flags & PTE_G){
+            continue;//was global
+        }
+
+        //at this point it was valid and non-global so lets keep looking down the tree
+        struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
+
+        //look at every entry in the level 1 pt
+        for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
+            struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
+
+            //check if it is active
+            if((curr_pt1_entry.flags & PTE_V) == 0 ){
+                continue;   //valid flag was zero so nothing to see here
+            }
+
+            //at this point it is active/valid
+
+            //we want to only reclaim non-global so skip if global
+            if(curr_pt1_entry.flags & PTE_G){
+                continue;//was global
+            }
+
+            //at this point it was valid and non-global so lets keep looking down the tree
+            struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
+
+            for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
+                struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
+
+                //check if it is active
+                if((curr_pt0_entry.flags & PTE_V) == 0 ){
+                    continue;   //valid flag was zero so nothing to see here
+                }
+
+                //at this point it is active/valid
+
+                //we want to only reclaim non-global so skip if global
+                if(curr_pt0_entry.flags & PTE_G){
+                    continue;//was global
+                }
+
+                //at this point we are looking at a physical an entry pointing to a physical page we want to free
+                void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
+                memory_free_page(pp);       //free physical page
+
+                pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+            }
+
+            //we looked all the way down from this pt1 entry so now clear this
+            memory_free_page(pt0);          //free all of pt0
+
+            pt1[vpn1] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
+
+        }
+
+        //we looked all the way down from this pt1 entry so now clear this
+        memory_free_page(pt1);          //free all of pt1
+
+        old_root_table[vpn2] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
+
+    }
+
+    memory_free_page(old_root_table);       //free the old root table
+
 }
 
 void *memory_alloc_page(void)
@@ -451,11 +539,11 @@ static inline int aligned_size(size_t size, size_t blksz) {
     return ((size % blksz) == 0);
 }
 
-static inline uintptr_t active_space_mtag(void) {
+static inline uintptr_t active_space_mtag(void) {                   //use to get curr mtag
     return csrr_satp();
 }
 
-static inline struct pte * mtag_to_root(uintptr_t mtag) {
+static inline struct pte * mtag_to_root(uintptr_t mtag) {           //gives the address of the first entry already since ((<<20)>>20)<<12 is just (<<20)>>8
     return (struct pte *)((mtag << 20) >> 8);
 }
 
