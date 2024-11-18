@@ -354,20 +354,20 @@ void memory_space_reclaim(void)
             }
 
             //we looked all the way down from this pt1 entry so now clear this
-            memory_free_page(pt0);          //free all of pt0
+            // memory_free_page(pt0);          //free all of pt0
 
-            pt1[vpn1] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
+            // pt1[vpn1] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
 
         }
 
         //we looked all the way down from this pt1 entry so now clear this
-        memory_free_page(pt1);          //free all of pt1
+        // memory_free_page(pt1);          //free all of pt1
 
-        old_root_table[vpn2] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
+        // old_root_table[vpn2] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
 
     }
 
-    memory_free_page(old_root_table);       //free the old root table
+    // memory_free_page(old_root_table);       //free the old root table
 
 }
 
@@ -382,71 +382,94 @@ void *memory_alloc_page(void)
     union linked_page * newPage = free_list;
     free_list = free_list -> next;
 
+    return (void *) newPage;
+
     // Need to make pp, make data page pp, virtual adress = pp, return it
     // Returns value in RAM range, so VMA = PMA
     //char pad[PAGE_SIZE];
-    char * pad = (char *) start;
+    // char * pad = (char *) start;
 
-    for(size_t x = 0; x < (size_t) sizeof(pad); x++)
-    {
-        newPage -> padding[x] = pad[x];
-    }
+    // for(size_t x = 0; x < (size_t) sizeof(pad); x++)
+    // {
+    //     newPage -> padding[x] = pad[x];
+    // }
 
-    // Add new page to not free list
-    union linked_page * check = not_free_list;
-    if(check == NULL)
-    {
-        check = newPage;
-    }
-    else
-    {
-        while(check -> next != NULL)
-        {
-            check = check -> next;
-        }
-        check = newPage;
-    }
+    // // Add new page to not free list
+    // union linked_page * check = not_free_list;
+    // if(check == NULL)
+    // {
+    //     check = newPage;
+    // }
+    // else
+    // {
+    //     while(check -> next != NULL)
+    //     {
+    //         check = check -> next;
+    //     }
+    //     check = newPage;
+    // }
 
-    // Move to next physical address after using it for page here
+    // // Move to next physical address after using it for page here
 
-    // Set page table to pp
+    // // Set page table to pp
 
-    void * pp = pagenum_to_pageptr((uintptr_t) start);
-    start += 1;
-    return pp;
+    // void * pp = pagenum_to_pageptr((uintptr_t) start);
+    // start += 1;
+    // return pp;
 }
 
 void memory_free_page(void *pp)
 {
-    // Get page using memory tables and pp
-    uintptr_t temp = pageptr_to_pagenum(pp);
-    union linked_page * check = not_free_list;
-    union linked_page * remove;
-    while(check -> next != NULL)
-    {
-        if(check -> next -> padding == (char *) temp)
-        {
-            remove = check -> next;
-            check -> next = check -> next -> next;
-            break;
-        }
-        else
-        {
-            check = check -> next;
-        }
+
+    //check if alligned
+    if(aligned_ptr(pp,PAGE_SIZE) != 0){
+        panic("page not aligned so we can't add it to free list");
     }
-    remove -> next = free_list;
-    free_list = remove;
+
+    // //first access as pte to set the flag as unvalid
+    // struct pte * pte = (struct pte *) pp;
+
+    // //set flags to show unavailable
+    // pte->flags = pte->flags & !PTE_V;
+
+    //now get the page as a linked page
+    union linked_page* new_free_list_head = (union linked_page*) pp;
+
+    //add to the free list
+    new_free_list_head->next = free_list;
+    free_list = new_free_list_head;
 }
 
 void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 {
+    if(wellformed_vma(vma) == 0){ 
+        panic("not well formed because Address bits 63:38 must be all 0 or all 1");
+    }
+
     // Somehow get vma
     void * newPP = memory_alloc_page();
+    //struct pte newLeaf = leaf_pte(newPP, rwxug_flags);  // Spawns leaf page table entry for a given pp
 
-    struct pte newPTE = leaf_pte(newPP, rwxug_flags);
-    void * ret = (void *) newPTE.ppn;
-    return ret;
+    
+    // Map vma to newPP somehow
+
+    uintptr_t pt2_pma = (csrr_satp() << 20) >> 8;
+    struct pte * pt2 = (struct pte *) pt2_pma;
+
+    uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
+    uintptr_t pt1_pma = pt1_ppn << 12;
+    struct pte * pt1 = (struct pte*)pt1_pma;
+
+    uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
+    uintptr_t pt0_pma = pt0_ppn << 12;
+    struct pte * pt0 = (struct pte*) pt0_pma;
+
+    uintptr_t ppn = pt0[VPN0(vma)].ppn;
+    uintptr_t pma = (ppn << 12) | (vma & 0xFFF);
+
+    newPP = pma;        // Using newPP and pma?
+    
+    return (void *) vma;        // Should be correct
 }
 
 void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug_flags)
@@ -460,7 +483,7 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
         }
         else
         {
-        memory_alloc_and_map_page(vma, rwxug_flags);
+        memory_alloc_and_map_page(vma + x, rwxug_flags);
         }
     }
     return firstAdr;
@@ -469,17 +492,15 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
 {
     //Get pte for vp
-    struct pte temp;
-    temp.flags = rwxug_flags;
+    struct pte * temp = (struct pte *) vp; 
+    temp->flags = rwxug_flags | PTE_A | PTE_D | PTE_V;
 }
 
 void memory_set_range_flags(const void *vp, size_t size, uint8_t rwxug_flags)
 {
-    void * tempVP = vp;
     for(size_t x = 0; x < size; x++)
     {
-        memory_set_page_flags(tempVP, rwxug_flags);
-        tempVP += 1;
+        memory_set_page_flags(vp + x, rwxug_flags);
     }
 }
 
@@ -487,6 +508,7 @@ void memory_unmap_and_free_user(void)
 {
     // unmap and free all user space pages
 
+    // Go through all pages -> if U bit is set, unmap and free page.
 }
 
 /*
