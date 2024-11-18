@@ -27,8 +27,10 @@ CORE_OBJS = \
 	vioblk.o \
 	console.o \
 	excp.o \
-	memory.o
+	memory.o \
+	kfs.o
 	# Add more object files here
+	
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d

@@ -86,6 +86,8 @@ struct pte {
 // INTERNAL FUNCTION DECLARATIONS
 //
 
+struct pte * walk_pt(struct pte * root, uintptr_t vma, int create);
+
 static inline int wellformed_vma(uintptr_t vma);
 static inline int wellformed_vptr(const void * vp);
 static inline int aligned_addr(uintptr_t vma, size_t blksz);
@@ -289,6 +291,8 @@ void memory_space_reclaim(void)
 
     // Switch active memory space to main memory space
     memory_space_switch(main_mtag);
+
+    // MAY BE ABLE TO CALL unmap all instead of doing this here?
     
     //for all the entries in the level 2 (root) page table
     for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
@@ -384,38 +388,6 @@ void *memory_alloc_page(void)
 
     return (void *) newPage;
 
-    // Need to make pp, make data page pp, virtual adress = pp, return it
-    // Returns value in RAM range, so VMA = PMA
-    //char pad[PAGE_SIZE];
-    // char * pad = (char *) start;
-
-    // for(size_t x = 0; x < (size_t) sizeof(pad); x++)
-    // {
-    //     newPage -> padding[x] = pad[x];
-    // }
-
-    // // Add new page to not free list
-    // union linked_page * check = not_free_list;
-    // if(check == NULL)
-    // {
-    //     check = newPage;
-    // }
-    // else
-    // {
-    //     while(check -> next != NULL)
-    //     {
-    //         check = check -> next;
-    //     }
-    //     check = newPage;
-    // }
-
-    // // Move to next physical address after using it for page here
-
-    // // Set page table to pp
-
-    // void * pp = pagenum_to_pageptr((uintptr_t) start);
-    // start += 1;
-    // return pp;
 }
 
 void memory_free_page(void *pp)
@@ -446,15 +418,9 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
         panic("not well formed because Address bits 63:38 must be all 0 or all 1");
     }
 
-    // Somehow get vma
     void * newPP = memory_alloc_page();
-    //struct pte newLeaf = leaf_pte(newPP, rwxug_flags);  // Spawns leaf page table entry for a given pp
 
-    
-    // Map vma to newPP somehow
-
-    uintptr_t pt2_pma = (csrr_satp() << 20) >> 8;
-    struct pte * pt2 = (struct pte *) pt2_pma;
+    struct pte * pt2 = active_space_root();
 
     uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
     uintptr_t pt1_pma = pt1_ppn << 12;
@@ -464,29 +430,37 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
     uintptr_t pt0_pma = pt0_ppn << 12;
     struct pte * pt0 = (struct pte*) pt0_pma;
 
-    uintptr_t ppn = pt0[VPN0(vma)].ppn;
-    uintptr_t pma = (ppn << 12) | (vma & 0xFFF);
+    struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V); // Or with one so always valid?
+    pt0[VPN0(vma)] = leaf;
 
-    newPP = pma;        // Using newPP and pma?
-    
-    return (void *) vma;        // Should be correct
+    //Set flags to make valid - "Region must be RW when first mapped, so you can load it" - SET R AND W?
+
+    return (void *) vma;        // Should be correct return value
 }
 
 void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug_flags)
 {
-    void * firstAdr;
-    for(uintptr_t x = 0; x < size; x++)
+    int numPages = size / PAGE_SIZE;
+
+    struct pte * pt2 = active_space_root();
+
+    uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
+    uintptr_t pt1_pma = pt1_ppn << 12;
+    struct pte * pt1 = (struct pte*)pt1_pma;
+
+    uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
+    uintptr_t pt0_pma = pt0_ppn << 12;
+    struct pte * pt0 = (struct pte*) pt0_pma;
+
+    for(int x = 0; x < numPages; x++)
     {
-        if(x == 0)
-        {
-        firstAdr = memory_alloc_and_map_page(vma, rwxug_flags);
-        }
-        else
-        {
-        memory_alloc_and_map_page(vma + x, rwxug_flags);
-        }
+        void * newPP = memory_alloc_page();
+        struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V); // Or with one so always valid?
+        pt0[VPN0(vma + x)] = leaf;      // Unsure if this is right way to set all pages for virtual address
+
+        //Set flags to make valid
     }
-    return firstAdr;
+    return (void *) vma;        // Should be correct return value
 }
 
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
@@ -498,17 +472,113 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
 
 void memory_set_range_flags(const void *vp, size_t size, uint8_t rwxug_flags)
 {
-    for(size_t x = 0; x < size; x++)
+    int numPages = size / PAGE_SIZE;
+    for(int x = 0; x < numPages; x++)
     {
-        memory_set_page_flags(vp + x, rwxug_flags);
+        memory_set_page_flags(vp + x, rwxug_flags); // Right way to set each PTE's flags?
     }
 }
 
 void memory_unmap_and_free_user(void)
 {
+    // Taken from reclaim
+        for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
+
+
+        //get the current pt1 entry
+        struct pte curr_pt2_entry = active_space_root()[vpn2];
+
+        //check if it is active
+        if((curr_pt2_entry.flags & PTE_V) == 0 ){
+            continue;   //valid flag was zero so nothing to see here
+        }
+
+        //at this point it is active/valid
+
+        //we want to only reclaim non-global so skip if global
+        if(curr_pt2_entry.flags & PTE_G){
+            continue;//was global
+        }
+
+        //at this point it was valid and non-global so lets keep looking down the tree
+        struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
+
+        //look at every entry in the level 1 pt
+        for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
+            struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
+
+            //check if it is active
+            if((curr_pt1_entry.flags & PTE_V) == 0 ){
+                continue;   //valid flag was zero so nothing to see here
+            }
+
+            //at this point it is active/valid
+
+            //we want to only reclaim non-global so skip if global
+            if(curr_pt1_entry.flags & PTE_G){
+                continue;//was global
+            }
+
+            //at this point it was valid and non-global so lets keep looking down the tree
+            struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
+
+            for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
+                struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
+
+                //check if it is active
+                if((curr_pt0_entry.flags & PTE_V) == 0 ){
+                    continue;   //valid flag was zero so nothing to see here
+                }
+
+                //at this point it is active/valid
+
+                /*
+                //we want to only reclaim non-global so skip if global
+                if(curr_pt0_entry.flags & PTE_G){
+                    continue;//was global
+                }
+                */
+
+               // Want to only unmap pages with U flag set
+               if(curr_pt0_entry.flags & !PTE_U)
+               {
+                continue;
+               }
+
+                //at this point we are looking at a physical an entry pointing to a physical page we want to free
+                void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
+                memory_free_page(pp);       //free physical page
+
+                pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+            }
+
+            //we looked all the way down from this pt1 entry so now clear this
+            // memory_free_page(pt0);          //free all of pt0
+
+            // pt1[vpn1] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
+
+        }
+
+        //we looked all the way down from this pt1 entry so now clear this
+        // memory_free_page(pt1);          //free all of pt1
+
+        // old_root_table[vpn2] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
+
+    }
+
+
+
+    // Unmaps any page in user range mapped with U flag set and frees underlying physical page 
+
+
     // unmap and free all user space pages
 
     // Go through all pages -> if U bit is set, unmap and free page.
+    
+    // Start at pt2, go through all entries
+    // For all entries in given pt1...,
+    // For all entries in given pt0...,
+    // If associated file has U bit set, unmap and free page
 }
 
 /*
@@ -539,6 +609,17 @@ void memory_handle_page_fault(const void * vptr)
 // INTERNAL FUNCTION DEFINITIONS
 //
 
+struct pte * walk_pt(struct pte * root, uintptr_t vma, int create)
+{
+    /*
+    // Takes pointer to active root and walks down page table structure using VMA fields of vma. If create is non-zero, then it creates page tables to walk to leaf page table
+    if(create != 0)
+    {
+    
+    }
+    */
+
+}
 static inline int wellformed_vma(uintptr_t vma) {
     // Address bits 63:38 must be all 0 or all 1
     uintptr_t const bits = (intptr_t)vma >> 38;
