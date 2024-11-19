@@ -419,9 +419,32 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
     struct pte * pt2 = active_space_root();
 
+    if(pt2[VPN2(vma)].flags & PTE_V)
+    {
+        struct pte leaf = leaf_pte(, rwxug_flags | PTE_V);
+        pt2[VPN2(vma)] = 
+        pt2[VPN2(vma)].flags |= PTE_V;
+
+    }
+
     uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
-    uintptr_t pt1_pma = pt1_ppn << 12;
+    
+    uintptr_t pt1_pma = pagenum_to_pageptr(pt1_ppn);
     struct pte * pt1 = (struct pte*)pt1_pma;
+
+    if(pt1 == NULL)
+    {
+        pt1 = kmalloc(sizeof(struct pte));
+        struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V);
+        struct pte * leaf_point = kmalloc(sizeof(struct pte));
+        *leaf_point = leaf;
+        struct pte pt0_pte = ptab_pte(leaf_point, rwxug_flags);
+        uintptr_t pt0_pma = pageptr_to_pagenum(&pt0_pte) << 12;
+        struct pte * pt0 = (struct pte*) pt0_pma;
+        pt1[VPN1(vma)] = kmalloc(sizeof(struct pte));
+        pt1[VPN1(vma)].flags |= PTE_V;
+        pt1[VPN1(vma)].ppn = pagenum_to_pageptr(pt0_pma);
+    }
 
     uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
     uintptr_t pt0_pma = pt0_ppn << 12;
@@ -463,6 +486,11 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
 {
     //Get pte for vp
+
+    // Can we assume valid vp? (When we walk down, we won't have to create anything)
+
+    
+
     struct pte * temp = (struct pte *) vp; 
     temp->flags = rwxug_flags | PTE_A | PTE_D | PTE_V;
 }
@@ -541,11 +569,14 @@ void memory_unmap_and_free_user(void)
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
                 memory_free_page(pp);       //free physical page
 
-                pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+                // pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+                kfree(&pt0[vpn0]);
                 // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
             }
+            kfree(&pt1[vpn1]);
 
         }
+        kfree(&active_space_root()[vpn2]);
 
     }
 
