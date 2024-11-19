@@ -256,16 +256,13 @@ void memory_init(void) {
     start = RAM_START;      //what this a for?
 
     // Create page_cnt # of nodes
-    for(int x = 0; x < page_cnt; x++)
+    for(int x = 0; x < page_cnt-1; x++)
     {
-        // Do we need to set value of padding here??        //pading should never have a value it is only to ensure spacing
 
         //the space between heap_end and RAM_END should already be left intentionally alone in order for us to use
-        //so just create a pointer to each space
+        //so just create a pointer to each space maybe?
 
-        //union linked_page * nextPage = (union linked_page *)page + PAGE_SIZE;
-        union linked_page * nextPage = kmalloc(PAGE_SIZE);
-        //assert(nextPage <= RAM_END); //will let us know if we went past the space
+        union linked_page * nextPage = (union linked_page *)page + 1;
         page->next = nextPage;
         page = page->next;
     }
@@ -356,23 +353,18 @@ void memory_space_reclaim(void)
                 memory_free_page(pp);       //free physical page
 
                 pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+                // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
             }
+            // memory_free_page(pt1);
+            pt1[vpn1].flags = pt1[vpn1].flags & !PTE_V;         //set V flag to 0 maybe?
 
-            //we looked all the way down from this pt1 entry so now clear this
-            // memory_free_page(pt0);          //free all of pt0
-
-            // pt1[vpn1] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
 
         }
+        old_root_table[vpn2].flags = old_root_table[vpn2].flags & !PTE_V;         //set V flag to 0 maybe?
 
-        //we looked all the way down from this pt1 entry so now clear this
-        // memory_free_page(pt1);          //free all of pt1
-
-        // old_root_table[vpn2] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
 
     }
-
-    // memory_free_page(old_root_table);       //free the old root table
+    sfence_vma();
 
 }
 
@@ -498,14 +490,16 @@ void memory_unmap_and_free_user(void)
             continue;   //valid flag was zero so nothing to see here
         }
 
-        //at this point it is active/valid
-
-        //we want to only reclaim non-global so skip if global
-        if(curr_pt2_entry.flags & PTE_G){
-            continue;//was global
+        // Want to only unmap pages with U flag set
+        if((curr_pt2_entry.flags & PTE_U) == 0)
+        {
+        continue;
         }
 
-        //at this point it was valid and non-global so lets keep looking down the tree
+        //at this point it is active/valid
+
+
+        // lets keep looking down the tree
         struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
 
         //look at every entry in the level 1 pt
@@ -518,13 +512,13 @@ void memory_unmap_and_free_user(void)
             }
 
             //at this point it is active/valid
+            // Want to only unmap pages with U flag set
+               if((curr_pt1_entry.flags & PTE_U) == 0)
+               {
+                continue;
+               }
 
-            //we want to only reclaim non-global so skip if global
-            if(curr_pt1_entry.flags & PTE_G){
-                continue;//was global
-            }
-
-            //at this point it was valid and non-global so lets keep looking down the tree
+            // lets keep looking down the tree
             struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
 
             for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
@@ -537,15 +531,8 @@ void memory_unmap_and_free_user(void)
 
                 //at this point it is active/valid
 
-                /*
-                //we want to only reclaim non-global so skip if global
-                if(curr_pt0_entry.flags & PTE_G){
-                    continue;//was global
-                }
-                */
-
                // Want to only unmap pages with U flag set
-               if(curr_pt0_entry.flags & !PTE_U)
+               if((curr_pt0_entry.flags & PTE_U) == 0)
                {
                 continue;
                }
@@ -555,19 +542,10 @@ void memory_unmap_and_free_user(void)
                 memory_free_page(pp);       //free physical page
 
                 pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+                // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
             }
 
-            //we looked all the way down from this pt1 entry so now clear this
-            // memory_free_page(pt0);          //free all of pt0
-
-            // pt1[vpn1] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
-
         }
-
-        //we looked all the way down from this pt1 entry so now clear this
-        // memory_free_page(pt1);          //free all of pt1
-
-        // old_root_table[vpn2] = null_pte();         //set this entry to now point to null but not sure since we might just have to make v flag to 0
 
     }
 
@@ -584,6 +562,8 @@ void memory_unmap_and_free_user(void)
     // For all entries in given pt1...,
     // For all entries in given pt0...,
     // If associated file has U bit set, unmap and free page
+    sfence_vma();  
+
 }
 
 /*
