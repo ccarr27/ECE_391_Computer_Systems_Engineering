@@ -352,15 +352,15 @@ void memory_space_reclaim(void)
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
                 memory_free_page(pp);       //free physical page
 
-                pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+                kfree(&pt0[vpn0]);     //set this entry to now point to null but not sure since we might just have to make v flag to 0
                 // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
             }
             // memory_free_page(pt1);
-            pt1[vpn1].flags = pt1[vpn1].flags & !PTE_V;         //set V flag to 0 maybe?
+            kfree(&pt1[vpn1]); 
 
 
         }
-        old_root_table[vpn2].flags = old_root_table[vpn2].flags & !PTE_V;         //set V flag to 0 maybe?
+        kfree(&old_root_table[vpn2]);  
 
 
     }
