@@ -419,34 +419,40 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
     void * newPP = memory_alloc_page();
 
     struct pte * pt2 = active_space_root();
+
+    // uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
     
-    uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
-    
-    uintptr_t pt1_pma = pagenum_to_pageptr(pt1_ppn);
-    struct pte * pt1 = (struct pte*)pt1_pma;
+    // uintptr_t pt1_pma = pagenum_to_pageptr(pt1_ppn);
+    // struct pte * pt1 = (struct pte*)pt1_pma;
 
-    if(pt1 == NULL)
-    {
-        pt1 = kmalloc(sizeof(struct pte));
-        struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V);
-        struct pte * leaf_point = kmalloc(sizeof(struct pte));
-        *leaf_point = leaf;
-        struct pte pt0_pte = ptab_pte(leaf_point, rwxug_flags);
-        uintptr_t pt0_pma = pageptr_to_pagenum(&pt0_pte) << 12;
-        struct pte * pt0 = (struct pte*) pt0_pma;
+    // if(pt1 == NULL)
+    // {
+    //     pt1 = kmalloc(sizeof(struct pte));
+    //     struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V);
+    //     struct pte * leaf_point = kmalloc(sizeof(struct pte));
+    //     *leaf_point = leaf;
+    //     struct pte pt0_pte = ptab_pte(leaf_point, rwxug_flags);
+    //     uintptr_t pt0_pma = pageptr_to_pagenum(&pt0_pte) << 12;
+    //     struct pte * pt0 = (struct pte*) pt0_pma;
 
-        pt1[VPN1(vma)].flags |= PTE_V;
-        pt1[VPN1(vma)].ppn = pagenum_to_pageptr(pt0_pma);
-    }
+    //     pt1[VPN1(vma)].flags |= PTE_V;
+    //     pt1[VPN1(vma)].ppn = pagenum_to_pageptr(pt0_pma);
+    // }
 
-    uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
-    uintptr_t pt0_pma = pt0_ppn << 12;
-    struct pte * pt0 = (struct pte*) pt0_pma;
+    // uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
+    // uintptr_t pt0_pma = pt0_ppn << 12;
+    // struct pte * pt0 = (struct pte*) pt0_pma;
 
-    struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V); // Or with one so always valid?
-    pt0[VPN0(vma)] = leaf;
+    // struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V); // Or with one so always valid?
+    // pt0[VPN0(vma)] = leaf;
 
     //Set flags to make valid - "Region must be RW when first mapped, so you can load it" - SET R AND W?
+
+    struct pte* pt0_pte = walk_pt(pt2, vma, 1);
+
+    struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V);
+
+    *pt0_pte = leaf;
 
     return (void *) vma;        // Should be correct return value
 }
@@ -624,11 +630,13 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 
         //not valid so create a level 1 table here
         struct pte * pt1_new = (struct pte *)memory_alloc_page();
-        uint64_t pt1_new_ppn = pageptr_to_pagenum(pt1_new);
-        root[VPN2(vma)].ppn = pt1_new_ppn ;
+        // uint64_t pt1_new_ppn = pageptr_to_pagenum(pt1_new);
+        // root[VPN2(vma)].ppn = pt1_new_ppn ;
 
-        //set that pte to valid now because there is a table here
-        root[VPN2(vma)].flags |= PTE_V;
+        root[VPN2(vma)] = ptab_pte(pt1_new, PTE_G);
+
+        //set that pte is valid now because there is a table here
+        // root[VPN2(vma)].flags |= PTE_V;
 
     }
     //now the table there is valid
@@ -639,12 +647,19 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
         //pt0 did not exist so make one
 
         struct pte * pt0_new = (struct pte *)memory_alloc_page();
-        uint64_t pt0_new_ppn = pageptr_to_pagenum(pt0_new);
-        pt1[VPN1(vma)].ppn = pt0_new_ppn ;
+        // uint64_t pt0_new_ppn = pageptr_to_pagenum(pt0_new);
+        // pt1[VPN1(vma)].ppn = pt0_new_ppn ;
+        pt1[VPN1(vma)] = ptab_pte(pt0_new, PTE_G);
 
-        //set that pte to valid now because there is a table here
-        pt1[VPN1(vma)].flags |= PTE_V;
+        //that pte is valid now because there is a table here
+        // pt1[VPN1(vma)].flags |= PTE_V;
     }
+
+    //now there is for sure a pt0
+    struct pte * pt0 = pagenum_to_pageptr(pt1[VPN1(vma)].ppn);
+
+    //may need to check if what is at pt0 is valid
+    return &pt0[VPN0(vma)];
 
 
 
