@@ -346,6 +346,7 @@ void memory_space_reclaim(void)
                 //we want to only reclaim non-global so skip if global
                 if(curr_pt0_entry.flags & PTE_G){
                     continue;//was global
+                    
                 }
 
                 //at this point we are looking at a physical an entry pointing to a physical page we want to free
@@ -418,15 +419,7 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
     void * newPP = memory_alloc_page();
 
     struct pte * pt2 = active_space_root();
-
-    if(pt2[VPN2(vma)].flags & PTE_V)
-    {
-        struct pte leaf = leaf_pte(, rwxug_flags | PTE_V);
-        pt2[VPN2(vma)] = 
-        pt2[VPN2(vma)].flags |= PTE_V;
-
-    }
-
+    
     uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
     
     uintptr_t pt1_pma = pagenum_to_pageptr(pt1_ppn);
@@ -441,7 +434,7 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
         struct pte pt0_pte = ptab_pte(leaf_point, rwxug_flags);
         uintptr_t pt0_pma = pageptr_to_pagenum(&pt0_pte) << 12;
         struct pte * pt0 = (struct pte*) pt0_pma;
-        pt1[VPN1(vma)] = kmalloc(sizeof(struct pte));
+
         pt1[VPN1(vma)].flags |= PTE_V;
         pt1[VPN1(vma)].ppn = pagenum_to_pageptr(pt0_pma);
     }
@@ -625,15 +618,38 @@ void memory_handle_page_fault(const void * vptr)
 // INTERNAL FUNCTION DEFINITIONS
 //
 
-struct pte * walk_pt(struct pte * root, uintptr_t vma, int create)
-{
-    /*
-    // Takes pointer to active root and walks down page table structure using VMA fields of vma. If create is non-zero, then it creates page tables to walk to leaf page table
-    if(create != 0)
-    {
-    
+// Takes pointer to active root and walks down page table structure using VMA fields of vma. If create is non-zero, then it creates page tables to walk to leaf page table
+struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
+    if ((root[VPN2(vma)].flags & PTE_V) == 0){
+
+        //not valid so create a level 1 table here
+        struct pte * pt1_new = (struct pte *)memory_alloc_page();
+        uint64_t pt1_new_ppn = pageptr_to_pagenum(pt1_new);
+        root[VPN2(vma)].ppn = pt1_new_ppn ;
+
+        //set that pte to valid now because there is a table here
+        root[VPN2(vma)].flags |= PTE_V;
+
     }
-    */
+    //now the table there is valid
+    struct pte * pt1 = pagenum_to_pageptr(root[VPN2(vma)].ppn);
+
+    //now check if pt0 exists
+    if((pt1[VPN1(vma)].flags & PTE_V) == 0){
+        //pt0 did not exist so make one
+
+        struct pte * pt0_new = (struct pte *)memory_alloc_page();
+        uint64_t pt0_new_ppn = pageptr_to_pagenum(pt0_new);
+        pt1[VPN1(vma)].ppn = pt0_new_ppn ;
+
+        //set that pte to valid now because there is a table here
+        pt1[VPN1(vma)].flags |= PTE_V;
+    }
+
+
+
+
+
    return NULL;
 }
 static inline int wellformed_vma(uintptr_t vma) {
