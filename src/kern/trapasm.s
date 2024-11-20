@@ -151,11 +151,16 @@ _trap_entry_from_umode:
         # stack pointer. We start by allocating a trap frame and saving t6
         # there, so we can use it as a temporary register.
 
+        add sp, sp, -(34*8)     # allocates room for trap frame
+        sd      t6, 31*8(sp)    # save t6 (x31) in trap frame    
+
 
         # TODO: FIXME your code here
 
         # We're now in S mode, so update our trap handler address to
         # _trap_entry_from_smode.
+
+        csrw stvec, _trap_entry_from_smode
 
         # TODO: FIXME your code here
 
@@ -164,6 +169,9 @@ _trap_entry_from_umode:
         # We're returning to U mode, so restore _smode_trap_entry_from_umode as
         # trap handler.
 
+        restore_gprs_except_t6_and_sp
+        restore_sstatus_and_sepc
+
         # TODO: FIXME your code here
 
         # Execution of trap entry continues here. Jump to handlers.
@@ -171,6 +179,8 @@ _trap_entry_from_umode:
 trap_umode_cont:
         
         # TODO: FIXME your code here
+
+        # I think this stuff is for system calls but not sure - Sam
 
         .global _mmode_trap_entry
         .type   _mmode_trap_entry, @function

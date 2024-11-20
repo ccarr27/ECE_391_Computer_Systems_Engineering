@@ -120,6 +120,20 @@ _thread_finish_jump:
 
         # TODO: FIXME your code here
 
+        # Set sscratch to kernel stack pointer
+        # Set stvec to trap entry from umode
+        # Set sepc = upc, sstatus.SPP = 0, sstatus.SPIE = 1
+        # ret?
+
+        csrw    sscratch, a1
+        csrw    stvec, _trap_entry_from_umode
+        csrw    sepc, a2
+        csrw    sstatus.SPP, 0
+        csrw    sstatus.SPIE, 1
+        
+        ret
+
+
 
 # Statically allocated stack for the idle thread.
 
