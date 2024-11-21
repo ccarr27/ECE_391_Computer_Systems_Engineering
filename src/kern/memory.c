@@ -281,91 +281,95 @@ void memory_init(void) {
 
 void memory_space_reclaim(void)
 {
-    // Get active memory space
-    uintptr_t old_mtag = active_space_mtag();
+    // // Get active memory space
+    // uintptr_t old_mtag = active_space_mtag();
 
-    //Get the old root page table
-    struct pte *old_root_table = mtag_to_root(old_mtag);
+    // //Get the old root page table
+    // struct pte *old_root_table = mtag_to_root(old_mtag);
+
+    memory_unmap_and_free_user();
 
     // Switch active memory space to main memory space
     memory_space_switch(main_mtag);
 
-    // MAY BE ABLE TO CALL unmap all instead of doing this here?
+    // // MAY BE ABLE TO CALL unmap all instead of doing this here?
     
-    //for all the entries in the level 2 (root) page table
-    for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
+    // //for all the entries in the level 2 (root) page table
+    // for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
 
 
-        //get the current pt1 entry
-        struct pte curr_pt2_entry = old_root_table[vpn2];
+    //     //get the current pt1 entry
+    //     struct pte curr_pt2_entry = old_root_table[vpn2];
 
-        //check if it is active
-        if((curr_pt2_entry.flags & PTE_V) == 0 ){
-            continue;   //valid flag was zero so nothing to see here
-        }
+    //     //check if it is active
+    //     if((curr_pt2_entry.flags & PTE_V) == 0 ){
+    //         continue;   //valid flag was zero so nothing to see here
+    //     }
 
-        //at this point it is active/valid
+    //     //at this point it is active/valid
 
-        //we want to only reclaim non-global so skip if global
-        if(curr_pt2_entry.flags & PTE_G){
-            continue;//was global
-        }
+    //     //we want to only reclaim non-global so skip if global
+    //     if(curr_pt2_entry.flags & PTE_G){
+    //         continue;//was global
+    //     }
 
-        //at this point it was valid and non-global so lets keep looking down the tree
-        struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
+    //     //at this point it was valid and non-global so lets keep looking down the tree
+    //     struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
 
-        //look at every entry in the level 1 pt
-        for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
-            struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
+    //     //look at every entry in the level 1 pt
+    //     for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
+    //         struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
 
-            //check if it is active
-            if((curr_pt1_entry.flags & PTE_V) == 0 ){
-                continue;   //valid flag was zero so nothing to see here
-            }
+    //         //check if it is active
+    //         if((curr_pt1_entry.flags & PTE_V) == 0 ){
+    //             continue;   //valid flag was zero so nothing to see here
+    //         }
 
-            //at this point it is active/valid
+    //         //at this point it is active/valid
 
-            //we want to only reclaim non-global so skip if global
-            if(curr_pt1_entry.flags & PTE_G){
-                continue;//was global
-            }
+    //         //we want to only reclaim non-global so skip if global
+    //         if(curr_pt1_entry.flags & PTE_G){
+    //             continue;//was global
+    //         }
 
-            //at this point it was valid and non-global so lets keep looking down the tree
-            struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
+    //         //at this point it was valid and non-global so lets keep looking down the tree
+    //         struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
 
-            for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
-                struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
+    //         for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
+    //             struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
 
-                //check if it is active
-                if((curr_pt0_entry.flags & PTE_V) == 0 ){
-                    continue;   //valid flag was zero so nothing to see here
-                }
+    //             //check if it is active
+    //             if((curr_pt0_entry.flags & PTE_V) == 0 ){
+    //                 continue;   //valid flag was zero so nothing to see here
+    //             }
 
-                //at this point it is active/valid
+    //             //at this point it is active/valid
 
-                //we want to only reclaim non-global so skip if global
-                if(curr_pt0_entry.flags & PTE_G){
-                    continue;//was global
+    //             //we want to only reclaim non-global so skip if global
+    //             if(curr_pt0_entry.flags & PTE_G){
+    //                 continue;//was global
                     
-                }
+    //             }
 
-                //at this point we are looking at a physical an entry pointing to a physical page we want to free
-                void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
-                memory_free_page(pp);       //free physical page
+    //             //at this point we are looking at a physical an entry pointing to a physical page we want to free
+    //             void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
+    //             memory_free_page(pp);       //free physical page
 
-                kfree(&pt0[vpn0]);     //set this entry to now point to null but not sure since we might just have to make v flag to 0
-                // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
-            }
-            // memory_free_page(pt1);
-            kfree(&pt1[vpn1]); 
-
-
-        }
-        kfree(&old_root_table[vpn2]);  
+    //             kfree(&pt0[vpn0]);     //set this entry to now point to null but not sure since we might just have to make v flag to 0
+    //             // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
+    //         }
+    //         // memory_free_page(pt1);
+    //         kfree(&pt1[vpn1]); 
 
 
-    }
-    sfence_vma();
+    //     }
+    //     kfree(&old_root_table[vpn2]);  
+
+
+    // }
+
+
+    // sfence_vma();
 
 }
 
@@ -394,12 +398,6 @@ void memory_free_page(void *pp)
         panic("page not aligned so we can't add it to free list");
     }
 
-    // //first access as pte to set the flag as unvalid
-    // struct pte * pte = (struct pte *) pp;
-
-    // //set flags to show unavailable
-    // pte->flags = pte->flags & !PTE_V;
-
     //now get the page as a linked page
     union linked_page* new_free_list_head = (union linked_page*) pp;
 
@@ -420,32 +418,6 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
     struct pte * pt2 = active_space_root();
 
-    // uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
-    
-    // uintptr_t pt1_pma = pagenum_to_pageptr(pt1_ppn);
-    // struct pte * pt1 = (struct pte*)pt1_pma;
-
-    // if(pt1 == NULL)
-    // {
-    //     pt1 = kmalloc(sizeof(struct pte));
-    //     struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V);
-    //     struct pte * leaf_point = kmalloc(sizeof(struct pte));
-    //     *leaf_point = leaf;
-    //     struct pte pt0_pte = ptab_pte(leaf_point, rwxug_flags);
-    //     uintptr_t pt0_pma = pageptr_to_pagenum(&pt0_pte) << 12;
-    //     struct pte * pt0 = (struct pte*) pt0_pma;
-
-    //     pt1[VPN1(vma)].flags |= PTE_V;
-    //     pt1[VPN1(vma)].ppn = pagenum_to_pageptr(pt0_pma);
-    // }
-
-    // uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
-    // uintptr_t pt0_pma = pt0_ppn << 12;
-    // struct pte * pt0 = (struct pte*) pt0_pma;
-
-    // struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V); // Or with one so always valid?
-    // pt0[VPN0(vma)] = leaf;
-
     //Set flags to make valid - "Region must be RW when first mapped, so you can load it" - SET R AND W?
 
     struct pte* pt0_pte = walk_pt(pt2, vma, 1);
@@ -461,24 +433,10 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
 {
     int numPages = size / PAGE_SIZE;
 
-    struct pte * pt2 = active_space_root();
-
-    uintptr_t pt1_ppn = pt2[VPN2(vma)].ppn;
-    uintptr_t pt1_pma = pt1_ppn << 12;
-    struct pte * pt1 = (struct pte*)pt1_pma;
-
-    uintptr_t pt0_ppn = pt1[VPN1(vma)].ppn;
-    uintptr_t pt0_pma = pt0_ppn << 12;
-    struct pte * pt0 = (struct pte*) pt0_pma;
-
-    for(int x = 0; x < numPages; x++)
-    {
-        void * newPP = memory_alloc_page();
-        struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V); // Or with one so always valid?
-        pt0[VPN0(vma + x)] = leaf;      // Unsure if this is right way to set all pages for virtual address
-
-        //Set flags to make valid
+    for(int x = 0; x< numPages; x++){
+        memory_alloc_and_map_page(vma+x, rwxug_flags);
     }
+
     return (void *) vma;        // Should be correct return value
 }
 
@@ -490,8 +448,13 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
 
     
 
-    struct pte * temp = (struct pte *) vp; 
-    temp->flags = rwxug_flags | PTE_A | PTE_D | PTE_V;
+    uintptr_t vma = (uintptr_t) vp; 
+    struct pte * pte_0 = walk_pt(active_space_root(),vma, 0 );
+    if(pte_0 == NULL){
+        panic("tryng to set the flag of something that does not have a pte");
+    }
+    pte_0->flags = rwxug_flags | PTE_A | PTE_D | PTE_V;
+
 }
 
 void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flags)
@@ -506,11 +469,14 @@ void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flag
 void memory_unmap_and_free_user(void)
 {
     // Taken from reclaim
+
+    struct pte* pt2 = active_space_root();
+
         for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
 
 
         //get the current pt1 entry
-        struct pte curr_pt2_entry = active_space_root()[vpn2];
+        struct pte curr_pt2_entry = pt2[vpn2];
 
         //check if it is active
         if((curr_pt2_entry.flags & PTE_V) == 0 ){
@@ -567,19 +533,13 @@ void memory_unmap_and_free_user(void)
                 //at this point we are looking at a physical an entry pointing to a physical page we want to free
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
                 memory_free_page(pp);       //free physical page
-
-                // pt0[vpn0] = null_pte();     //set this entry to now point to null but not sure since we might just have to make v flag to 0
-                kfree(&pt0[vpn0]);
-                // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
             }
-            kfree(&pt1[vpn1]);
+            memory_free_page(pt0);
 
         }
-        kfree(&active_space_root()[vpn2]);
-
+        memory_free_page(pt1);
     }
-
-
+    memory_free_page(pt2);
 
     // Unmaps any page in user range mapped with U flag set and frees underlying physical page 
 
@@ -592,8 +552,7 @@ void memory_unmap_and_free_user(void)
     // For all entries in given pt1...,
     // For all entries in given pt0...,
     // If associated file has U bit set, unmap and free page
-    sfence_vma();  
-
+    sfence_vma();
 }
 
 /*
@@ -605,28 +564,31 @@ int memory_validate_vstr (const char * vs, uint_fast8_t ug_flags);
 
 void memory_handle_page_fault(const void * vptr)
 {
-    // Get pte for vptr
-    struct pte * temp = (struct pte *) vptr; 
 
     // If v flag == 0 and try to translate, page fault exception
-    if(temp -> flags | !PTE_V)
+    if((USER_START_VMA < vptr) && (USER_END_VMA > vptr))
     {
-        memory_alloc_page();
+        memory_alloc_and_map_page(vptr, PTE_U);
     }
     // If in U mode and U = 0, translate
-    else if(temp -> flags | !PTE_U)
+    else
     {
-        memory_alloc_page();
+        panic("memory_handle_page_fault");
+        process_exit();
     }
     // If in S mode and U = 1 and stats.SUM = 0, page fault
 
 }
+
 // INTERNAL FUNCTION DEFINITIONS
 //
 
 // Takes pointer to active root and walks down page table structure using VMA fields of vma. If create is non-zero, then it creates page tables to walk to leaf page table
 struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
     if ((root[VPN2(vma)].flags & PTE_V) == 0){
+        if(create == 0){
+            return NULL;
+        }
 
         //not valid so create a level 1 table here
         struct pte * pt1_new = (struct pte *)memory_alloc_page();
@@ -644,6 +606,9 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 
     //now check if pt0 exists
     if((pt1[VPN1(vma)].flags & PTE_V) == 0){
+        if(create == 0){
+            return NULL;
+        }
         //pt0 did not exist so make one
 
         struct pte * pt0_new = (struct pte *)memory_alloc_page();
