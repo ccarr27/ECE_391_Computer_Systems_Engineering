@@ -160,7 +160,8 @@ _trap_entry_from_umode:
         # We're now in S mode, so update our trap handler address to
         # _trap_entry_from_smode.
 
-        csrw stvec, _trap_entry_from_smode
+
+        j _trap_entry_from_smode
 
         # TODO: FIXME your code here
 
@@ -175,6 +176,8 @@ _trap_entry_from_umode:
         # TODO: FIXME your code here
 
         # Execution of trap entry continues here. Jump to handlers.
+
+        # SAM ADDED - Load value and jump to appropriate system calls
 
 trap_umode_cont:
         
