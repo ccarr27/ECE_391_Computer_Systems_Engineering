@@ -74,6 +74,6 @@ void default_excp_handler (
 		kprintf("Exception %d at %p\n", code, (void*)tfr->sepc);
 	else
 		kprintf("%s at %p\n", name, (void*)tfr->sepc);
-	
+	// If page fault, call mem handle page fault
     panic(NULL);
 }

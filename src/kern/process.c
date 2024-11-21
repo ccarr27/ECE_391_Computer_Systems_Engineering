@@ -8,6 +8,8 @@
 #include "intr.h"
 #include "csr.h"
 
+
+
 #ifdef PROCESS_TRACE
 #define TRACE
 #endif
@@ -62,10 +64,12 @@ void procmgr_init(void)
 
     thread_set_process(main_proc.tid, &main_proc);      // Creates process 0 around main thread and address space
 
+    // Don't think we need to set iotab, syscalls will do that
+
 }
 
 // Executes program referred to by I/O interface
-int process_exec(struct io_intf *exeio)
+int process_exec(struct io_intf * exeio)
 {
 // 1. Any virtual memory mappings belonging to other user processes should be unmapped
     memory_unmap_and_free_user();
@@ -85,12 +89,15 @@ int process_exec(struct io_intf *exeio)
 // 3. Thread associated with process needs to be started in user-mode (assembly function in thrasm.s would be helpful)
     // usp = user stack pointer, upc = user program counter
 
+    // Thread context stores stack pointer for thread
+    //
+
     // interrupts must be disabled when setting up jump
 
     int interrupt = intr_disable();
     thread_jump_to_user(0 , 0); //USP, UPC
     intr_restore(interrupt);
-
+    return 0;
 }
 
 void process_exit(void)
@@ -102,10 +109,11 @@ void process_exit(void)
 
     for(int x = 0; x < 16; x++)
     {
+        if(curr -> iotab[x] -> ops != NULL) // May need to check if iotab[x] != NULL (depends on io_intf default value)
+        {
         ioclose(curr -> iotab[x]);      // Close open IO interfaces
+        }
     }
 
     thread_exit();          // Releases associated kernel thread?
-
-
 }
