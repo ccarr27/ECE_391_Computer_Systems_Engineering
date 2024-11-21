@@ -568,7 +568,7 @@ void memory_handle_page_fault(const void * vptr)
     // If v flag == 0 and try to translate, page fault exception
     if((USER_START_VMA < vptr) && (USER_END_VMA > vptr))
     {
-        memory_alloc_and_map_page(vptr, PTE_U);
+        memory_alloc_and_map_page(vptr, PTE_U| PTE_R|PTE_W);    //allocate a read write page
     }
     // If in U mode and U = 0, translate
     else
