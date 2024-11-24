@@ -14,6 +14,8 @@
 #include "syscall.h"
 #include "scnum.h"
 
+#include "device.h"
+#include "fs.h"
 
 
 struct trap_frame {
@@ -123,32 +125,128 @@ int sysdevopen(int fd, const char * name, int instno)
 {
     if(fd >= 0)
     {
+        struct io_intf ** device = kmalloc(sizeof(struct io_intf));
+        int retVal = device_open(device, name, instno);
+        if(retVal != 0)
+        {
+            return -EINVAL;
+        }
+        current_process() -> iotab[fd] = *device;
+        return fd;
         // Request specific file descriptor number
     }
     else{
+        int x = 0;
+        while(current_process() -> iotab[x] != NULL)
+        {
+            if(x <= PROCESS_IOMAX)
+            {
+                return -EINVAL;
+            }
+            x += 1;
+        }
+        struct io_intf ** device = kmalloc(sizeof(struct io_intf));
+        int retVal = device_open(device, name, instno);
+        if(retVal != 0)
+        {
+            return -EINVAL;
+        }
+        current_process() -> iotab[x] = *device;
+        return x;
         // Request next availble descriptor number
     }
     // Returns file descriptor on success, negative on error
-    return fd;
+    return 0;
 }
 
 int sysfsopen(int fd, const char * name)
 {
     if(fd >= 0)
     {
+        struct io_intf ** file = kmalloc(sizeof(struct io_intf));
+        int retVal = fs_open(name, file);
+        if(retVal != 0)
+        {
+            return -EINVAL;
+        }
+        current_process() -> iotab[fd] = *file;
+        return fd;
         // Requests specific file descriptor number
     
     }
     else{
+        int x = 0;
+        while(current_process() -> iotab[x] != NULL)
+        {
+            if(x <= PROCESS_IOMAX)
+            {
+                return -EINVAL;
+            }
+            x += 1;
+        }
+        
+        struct io_intf ** file = kmalloc(sizeof(struct io_intf));
+        int retVal = fs_open(name, file);
+        if(retVal != 0)
+        {
+            return -EINVAL;
+        }
+        current_process() -> iotab[x] = *file;
+        return x;
         // Requests next file descriptor number
     }
     // Returns file descriptor on success, negative on error
     return fd;
 }
 
+static long sysread(int fd, void *buf, size_t bufsz)
+{
+    int val = ioread(current_process() -> iotab[fd], buf, bufsz);
+    // end of file return 0
+    if(val != 0)
+    {
+        return -EIO;
+    }
+    void * pos;
+    void * len;
+    ioctl(current_process() -> iotab[fd], IOCTL_GETPOS, pos);
+    ioctl(current_process() -> iotab[fd], IOCTL_GETLEN, len);
+    if(pos >= len)
+    {
+        return 0;
+    }
+    return val;
+}
+
+static long syswrite(int fd, const void *buf, size_t len)
+{
+    int val = iowrite(current_process() -> iotab[fd], buf, len);
+    // end of file return 0
+    if(val != 0)
+    {
+        return -EIO;
+    }
+    void * pos;
+    void * len;
+    ioctl(current_process() -> iotab[fd], IOCTL_GETPOS, pos);
+    ioctl(current_process() -> iotab[fd], IOCTL_GETLEN, len);
+    if(pos >= len)
+    {
+        return 0;
+    }
+    return val;
+}
+
+static int sysioctl(int fd, int cmd, void * arg)
+{
+    ioctl(current_process() -> iotab[fd], cmd, arg);
+    return arg;
+}
+
 int sysclose(int fd)
 {
     ioclose(current_process() -> iotab[fd]);
+    //kfree iotab[fd]
     // fd no longer valid
     current_process() -> iotab[fd] = NULL;
     // returns 0 on success code, error code on error
