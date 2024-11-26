@@ -16,6 +16,12 @@
 #define	ELFMAG2		'L'
 #define	ELFMAG3		'F'
 
+/* These constants define the permissions on sections in the program
+   header, p_flags. */
+#define PF_R		0x4
+#define PF_W		0x2
+#define PF_X		0x1
+
 //e_ident array item identifiers
 #define EI_MAG0     0
 #define EI_MAG1     1
@@ -97,7 +103,7 @@ inputs: io interface and function pointer
 outputs: int which is 0 if success or neg if error
 */
 
-int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
+int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
     
     Elf64_Ehdr elf_header;  //create a pointer to an empty elf64 header
@@ -175,47 +181,52 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         //now only continue if our program is type PT Load
         if(prog_header.p_type == PT_LOAD){
 
-            console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
+            // console_printf("Executing line %d in file %s\n", __LINE__, __FILE__);
             //get the address of the program
             // void *v_addr = prog_header.p_vaddr;
             void *v_addr = (void *)(uintptr_t)prog_header.p_vaddr;
 
             //now we make sure it falls within the bounds of x80100000 and 0x81000000
-            if((Elf64_Addr)v_addr < min_prog_range || ((Elf64_Addr)v_addr + prog_header.p_memsz > max_prog_range)){
-                return -6;
+            // if((Elf64_Addr)v_addr < min_prog_range || ((Elf64_Addr)v_addr + prog_header.p_memsz > max_prog_range)){
+            //     return -6;
+            // }
+
+
+            //set the flags
+            uint_fast8_t rwx_flags = 0;
+            if(prog_header.p_flags & PF_X){
+                rwx_flags |= PTE_X;
+            }
+            if(prog_header.p_flags & PF_W){
+                rwx_flags |= PTE_W;
+            }
+            if(prog_header.p_flags & PF_R){
+                rwx_flags |= PTE_R;
             }
 
-            console_printf("p_offset: %d \n", prog_header.p_offset);
+            //rwx now has the flags we want
+
+            // console_printf("p_offset: %d \n", prog_header.p_offset);
+            
             //we know we are within range so seek to the beginning of the file
             if(ioseek(io, prog_header.p_offset) < 0){ //make sure we dont get an error
                 return -7;
             }
 
-            int pos;
 
-            
-
-
-            // long readreturn = ioread(io, v_addr, prog_header.p_filesz);
-
-            // console_printf("p_filesz size using sizeof: %lu\n", prog_header.p_filesz);
-            // console_printf("readreturn: %ld\n", readreturn);
-
-
-
-            io->ops->ctl(io, IOCTL_GETPOS, &pos);
-
-            console_printf("pos before read: %d \n", pos);
-            console_printf("we have to read: %d \n", prog_header.p_filesz);
+            // console_printf("pos before read: %d \n", pos);
+            // console_printf("we have to read: %d \n", prog_header.p_filesz);
             //load this file into memory
             // console_printf("p_filesz: %d \n", prog_header.p_filesz);
+            
+
+            memory_alloc_and_map_range(v_addr, prog_header.p_memsz, rwx_flags);
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
             }
 
-            io->ops->ctl(io, IOCTL_GETPOS, &pos);
 
-            console_printf("pos after read: %d \n", pos);
+            // console_printf("pos after read: %d \n", pos);
             // console_printf("we read: %d \n", prog_header.p_filesz);
 
             //initialize everything else to 0
@@ -229,8 +240,8 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     }
 
     //set the rentry point of execution
-    *entryptr = (void (*)(struct io_intf *)) elf_header.e_entry;
-    console_printf("e_entry:%x \n", elf_header.e_entry);
+    *entryptr = (void (*)(void)) elf_header.e_entry;
+    // console_printf("e_entry:%x \n", elf_header.e_entry);
     //close the file since we extracted what we needed
     // ioclose(io);
 

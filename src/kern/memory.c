@@ -573,7 +573,7 @@ void memory_handle_page_fault(const void * vptr)
     // If in U mode and U = 0, translate
     else
     {
-        panic("memory_handle_page_fault");
+        // panic("memory_handle_page_fault");
         process_exit();
     }
     // If in S mode and U = 1 and stats.SUM = 0, page fault
@@ -595,7 +595,8 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
         // uint64_t pt1_new_ppn = pageptr_to_pagenum(pt1_new);
         // root[VPN2(vma)].ppn = pt1_new_ppn ;
 
-        root[VPN2(vma)] = ptab_pte(pt1_new, PTE_G);
+        root[VPN2(vma)] = ptab_pte(pt1_new, PTE_U);
+        
 
         //set that pte is valid now because there is a table here
         // root[VPN2(vma)].flags |= PTE_V;
@@ -614,7 +615,7 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
         struct pte * pt0_new = (struct pte *)memory_alloc_page();
         // uint64_t pt0_new_ppn = pageptr_to_pagenum(pt0_new);
         // pt1[VPN1(vma)].ppn = pt0_new_ppn ;
-        pt1[VPN1(vma)] = ptab_pte(pt0_new, PTE_G);
+        pt1[VPN1(vma)] = ptab_pte(pt0_new, PTE_U);
 
         //that pte is valid now because there is a table here
         // pt1[VPN1(vma)].flags |= PTE_V;
@@ -625,12 +626,6 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 
     //may need to check if what is at pt0 is valid
     return &pt0[VPN0(vma)];
-
-
-
-
-
-   return NULL;
 }
 static inline int wellformed_vma(uintptr_t vma) {
     // Address bits 63:38 must be all 0 or all 1

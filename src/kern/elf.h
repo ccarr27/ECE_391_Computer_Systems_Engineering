@@ -5,6 +5,7 @@
 #define _ELF_H_
 
 #include "io.h"
+#include "memory.h"
 
 //           arg1: io interface from which to load the elf arg2: pointer to void
 //           (*entry)(struct io_intf *io), which is a function pointer elf_load fills in
@@ -17,7 +18,7 @@
 //           will be filled in with the entry point of the ELF file.
 //           Return 0 on success or a negative error code on error.
 
-int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io));
+int elf_load(struct io_intf *io, void (**entryptr)(void));
 
 //           _ELF_H_
 #endif
