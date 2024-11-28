@@ -120,6 +120,7 @@ _thread_finish_jump:
 
         # TODO: FIXME your code here
 
+        # I think...
         # Set sscratch to kernel stack pointer
         # Set stvec to trap entry from umode
         # Set sepc = upc, sstatus.SPP = 0, sstatus.SPIE = 1
@@ -129,7 +130,7 @@ _thread_finish_jump:
         j _trap_entry_from_umode
         csrw    sepc, a2
         
-        ret
+        sret
 
 
 

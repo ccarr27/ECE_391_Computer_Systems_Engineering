@@ -95,7 +95,9 @@ int process_exec(struct io_intf * exeio)
     // interrupts must be disabled when setting up jump
 
     int interrupt = intr_disable();
-    thread_jump_to_user(0 , 0); //USP, UPC
+    // Get usp from sscratch? pc from sepc?
+
+    thread_jump_to_user(csrr_sscratch() , csrr_sepc()); //USP, UPC
     intr_restore(interrupt);
     return 0;
 }
