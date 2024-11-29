@@ -431,7 +431,11 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
 void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug_flags)
 {
-    int numPages = size / PAGE_SIZE;
+    int numPages = size / PAGE_SIZE;    //get the number of pages needed
+
+    if(size%PAGE_SIZE > 0){ //if there is more space needed that didn't take up a whole page
+        numPages++;
+    }
 
     for(int x = 0; x< numPages; x++){
         memory_alloc_and_map_page(vma+x, rwxug_flags);
@@ -460,6 +464,11 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
 void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flags)
 {
     int numPages = size / PAGE_SIZE;
+    
+    if(size%PAGE_SIZE > 0){ //if there is more space needed that didn't take up a whole page
+        numPages++;
+    }
+
     for(int x = 0; x < numPages; x++)
     {
         memory_set_page_flags(vp + x, rwxug_flags); // Right way to set each PTE's flags?
@@ -566,9 +575,9 @@ void memory_handle_page_fault(const void * vptr)
 {
 
     // If v flag == 0 and try to translate, page fault exception
-    if((USER_START_VMA < vptr) && (USER_END_VMA > vptr))
+    if((USER_START_VMA < (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
     {
-        memory_alloc_and_map_page(vptr, PTE_U| PTE_R|PTE_W);    //allocate a read write page
+        memory_alloc_and_map_page((uint64_t)vptr, PTE_U| PTE_R|PTE_W);    //allocate a read write page
     }
     // If in U mode and U = 0, translate
     else

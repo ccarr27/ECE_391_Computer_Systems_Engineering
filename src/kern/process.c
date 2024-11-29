@@ -76,13 +76,14 @@ int process_exec(struct io_intf * exeio)
 
 // Not for CP2, but may later need to create new root table and initalize with default mapping for a user process
 
+
 // 2. Executable loaded from I/O interface provided as argument into the mapped pages
 
-    void (*exe_entry)(struct io_intf*);
+    void (*exe_entry)(void);
     int loaded = elf_load(exeio, &exe_entry);
-    if(loaded != 0)
+    if(loaded < 0)
     {
-        panic("Elf load failed");
+        console_printf("Elf load failed return was: %d", loaded);
     }
     //elf_load
 

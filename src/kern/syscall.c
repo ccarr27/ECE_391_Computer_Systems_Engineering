@@ -98,7 +98,7 @@ int sysmsgout(const char * msg)
     //result = memory_validate_str(msg, PTE_U);
     //if(result != 0)
     //  return result;
-    kprintf("Thread <%s:%d> says: %s\n",
+    console_printf("Thread <%s:%d> says: %s\n",
     thread_name(running_thread()), running_thread(), msg);
 
     return 0;

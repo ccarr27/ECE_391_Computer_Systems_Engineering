@@ -28,7 +28,9 @@ CORE_OBJS = \
 	console.o \
 	excp.o \
 	memory.o \
-	kfs.o
+	kfs.o \
+	process.o \
+	elf.o
 	# Add more object files here
 	
 

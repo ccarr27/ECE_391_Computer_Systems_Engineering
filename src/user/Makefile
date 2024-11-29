@@ -13,7 +13,7 @@ ULIB_OBJS = \
 	string.o \
 	io.o \
 	syscall.o \
-	start.o
+	start.o 
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d

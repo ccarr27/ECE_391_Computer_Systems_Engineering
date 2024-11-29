@@ -204,6 +204,8 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
                 rwx_flags |= PTE_R;
             }
 
+            rwx_flags |= PTE_U;
+
             //rwx now has the flags we want
 
             // console_printf("p_offset: %d \n", prog_header.p_offset);
@@ -220,7 +222,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             // console_printf("p_filesz: %d \n", prog_header.p_filesz);
             
 
-            memory_alloc_and_map_range(v_addr, prog_header.p_memsz, rwx_flags);
+            memory_alloc_and_map_range((uintptr_t)v_addr, prog_header.p_memsz, rwx_flags);
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
             }
@@ -228,7 +230,6 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
             // console_printf("pos after read: %d \n", pos);
             // console_printf("we read: %d \n", prog_header.p_filesz);
-
             //initialize everything else to 0
             
             if(prog_header.p_memsz > prog_header.p_filesz){
