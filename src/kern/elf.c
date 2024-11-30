@@ -226,7 +226,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
             }
-
+            
 
             // console_printf("pos after read: %d \n", pos);
             // console_printf("we read: %d \n", prog_header.p_filesz);

@@ -369,7 +369,7 @@ void memory_space_reclaim(void)
     // }
 
 
-    // sfence_vma();
+    sfence_vma();
 
 }
 
@@ -636,6 +636,8 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
     //may need to check if what is at pt0 is valid
     return &pt0[VPN0(vma)];
 }
+
+
 static inline int wellformed_vma(uintptr_t vma) {
     // Address bits 63:38 must be all 0 or all 1
     uintptr_t const bits = (intptr_t)vma >> 38;
