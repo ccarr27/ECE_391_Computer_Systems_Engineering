@@ -56,6 +56,10 @@ void smode_excp_handler(unsigned int code, struct trap_frame * tfr) {
 void umode_excp_handler(unsigned int code, struct trap_frame * tfr) {
     switch (code) {
     // TODO: FIXME dispatch to various U mode exception handlers
+    case(RISCV_SCAUSE_ECALL_FROM_UMODE):
+        syscall_handler(tfr);       //call syscall_handler
+        break;
+
     default:
         default_excp_handler(code, tfr);
         break;

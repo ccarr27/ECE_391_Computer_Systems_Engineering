@@ -19,7 +19,7 @@ _msgout:
         .global _devopen
         .type   _devopen, @function
 _devopen:
-        li      a7, DEVOPEN
+        li      a7, SYSCALL_DEVOPEN
         ecall
         ret
 

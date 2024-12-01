@@ -42,8 +42,10 @@ static int sysexec(int fd);
 int64_t syscall(struct trap_frame * tfr)
 {
     const uint64_t * const a = tfr -> x + TFR_A0;
+    // const uint64_t * const a = tfr -> x;
 
-    switch (a[TFR_A7]) {
+    // switch (a[TFR_A7]) {
+    switch (a[7]) {
 
         case SYSCALL_MSGOUT:
             return sysmsgout((const char *)a[0]);

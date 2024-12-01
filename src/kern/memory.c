@@ -575,7 +575,7 @@ void memory_handle_page_fault(const void * vptr)
 {
 
     // If v flag == 0 and try to translate, page fault exception
-    if((USER_START_VMA < (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
+    if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
     {
         memory_alloc_and_map_page((uint64_t)vptr, PTE_U| PTE_R|PTE_W);    //allocate a read write page
     }
