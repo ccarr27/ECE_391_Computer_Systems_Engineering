@@ -37,10 +37,12 @@ void main(void) {
 
     console_init();
     memory_init();
+
     intr_init();
     devmgr_init();
     thread_init();
     procmgr_init();
+
 
     // Attach NS16550a serial devices
 
@@ -58,7 +60,8 @@ void main(void) {
         virtio_attach(mmio_base, VIRT0_IRQNO+i);
     }
 
-    intr_enable();
+    intr_enable();    
+
 
     result = device_open(&blkio, "blk", 0);
 
@@ -69,6 +72,7 @@ void main(void) {
 
     debug("Mounted blk0");
 
+
     if (result != 0)
         panic("fs_mount failed");
 
@@ -76,7 +80,7 @@ void main(void) {
 
     if (result < 0)
         panic(INIT_PROC ": process image not found");
-    
+
     result = process_exec(initio);
     panic(INIT_PROC ": process_exec failed");
     

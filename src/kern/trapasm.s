@@ -182,7 +182,7 @@ _trap_entry_from_umode:
         # We're returning to U mode, so restore _smode_trap_entry_from_umode as
         # trap handler.
 
-        la      t6, _smode_trap_entry_from_umode
+        la      t6, _trap_entry_from_smode
         csrw    stvec, t6
 
         restore_sstatus_and_sepc
@@ -207,7 +207,7 @@ trap_umode_cont:
         # I think this stuff is for system calls but not sure - Sam
 
         csrr a0, scause
-        mv a1, sp       //may be different
+        mv a1, sp       #may be different
 
         bgez a0, umode_excp_handler
 

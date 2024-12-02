@@ -65,10 +65,10 @@ memory.elf: $(CORE_OBJS) memory_tests.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
 run-kernel: kernel.elf
-	$(QEMU) $(QEMUOPTS)
+	$(QEMU) $(QEMUOPTS)  
 
 run-memory: memory.elf
-	$(QEMU) $(QEMUOPTS)
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)

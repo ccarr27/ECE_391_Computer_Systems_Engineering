@@ -5,6 +5,7 @@
 #include "csr.h"
 #include "halt.h"
 #include "memory.h"
+#include "syscall.c"
 
 #include <stddef.h>
 
@@ -59,7 +60,11 @@ void umode_excp_handler(unsigned int code, struct trap_frame * tfr) {
     case(RISCV_SCAUSE_ECALL_FROM_UMODE):
         syscall_handler(tfr);       //call syscall_handler
         break;
-
+    
+    case(RISCV_SCAUSE_STORE_PAGE_FAULT):
+        memory_handle_page_fault((void*)tfr->sepc);
+        break;
+    
     default:
         default_excp_handler(code, tfr);
         break;

@@ -465,11 +465,16 @@ long vioblk_read(
         {
             return -EIO;
         }
+        // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
+        uint64_t x = char_buf + (uint64_t)total_read;
 
+        // console_printf("%x \n", x);
         // Copy data from block buffer to user buffer
         // memcpy(char_buf + (uint64_t)total_read, dev->blkbuf + sector_offset, to_read);
         memcpy(char_buf + (uint64_t)total_read, dev->blkbuf + sector_offset, to_read);
+
+        // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
         // Update position and counters
         dev->pos += to_read;

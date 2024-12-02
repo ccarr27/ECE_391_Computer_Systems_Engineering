@@ -2,6 +2,7 @@
 
 #include "elf.h"
 #include "io.h"
+#include "config.h"
 
 
 #include <stddef.h>
@@ -185,11 +186,13 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             //get the address of the program
             // void *v_addr = prog_header.p_vaddr;
             void *v_addr = (void *)(uintptr_t)prog_header.p_vaddr;
+            void *p_addr = (void *)(uintptr_t)prog_header.p_paddr;
+
 
             //now we make sure it falls within the bounds of x80100000 and 0x81000000
-            // if((Elf64_Addr)v_addr < min_prog_range || ((Elf64_Addr)v_addr + prog_header.p_memsz > max_prog_range)){
-            //     return -6;
-            // }
+            if((Elf64_Addr)v_addr < USER_START_VMA || ((Elf64_Addr)v_addr + prog_header.p_memsz > USER_END_VMA)){
+                return -6;
+            }
 
 
             //set the flags
@@ -221,12 +224,23 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             //load this file into memory
             // console_printf("p_filesz: %d \n", prog_header.p_filesz);
             
+            console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
-            memory_alloc_and_map_range((uintptr_t)v_addr, prog_header.p_memsz, rwx_flags);
+            memory_alloc_and_map_range((uintptr_t)v_addr, prog_header.p_memsz, PTE_W |PTE_R|PTE_U);
+
+
+            console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+
+            
+
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
+                console_printf("line: %d \n", __LINE__);
+                
             }
-            
+            console_printf("line: %d \n", __LINE__);
+
+            memory_set_range_flags(v_addr,prog_header.p_memsz, rwx_flags);
 
             // console_printf("pos after read: %d \n", pos);
             // console_printf("we read: %d \n", prog_header.p_filesz);
@@ -250,3 +264,5 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
     return 0; //success
 }
+
+

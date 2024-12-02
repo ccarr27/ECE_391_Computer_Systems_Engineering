@@ -123,8 +123,6 @@ static union linked_page * free_list;
 
 //made the not free list
 
-union linked_page * not_free_list;
-
 static struct pte main_pt2[PTE_CNT]
     __attribute__ ((section(".bss.pagetable"), aligned(4096)));
 static struct pte main_pt1_0x80000[PTE_CNT]
@@ -262,6 +260,8 @@ void memory_init(void) {
         //the space between heap_end and RAM_END should already be left intentionally alone in order for us to use
         //so just create a pointer to each space maybe?
 
+
+
         union linked_page * nextPage = (union linked_page *)page + 1;
         page->next = nextPage;
         page = page->next;
@@ -385,6 +385,7 @@ void *memory_alloc_page(void)
     free_list = free_list -> next;
 
     //newPage -> next = NULL;
+    // memset(newPage, 0, PAGE_SIZE);
 
     return (void *) newPage;
 
@@ -395,8 +396,15 @@ void memory_free_page(void *pp)
 
     //check if alligned
     if(aligned_ptr(pp,PAGE_SIZE) != 0){
-        panic("page not aligned so we can't add it to free list");
+        // panic("page not aligned so we can't add it to free list");
+        round_down_addr((uintptr_t)pp,PAGE_SIZE);
+
     }
+
+    console_printf("line: %d \n", __LINE__);
+
+    // memset(pp, 0, PAGE_SIZE);
+    
 
     //now get the page as a linked page
     union linked_page* new_free_list_head = (union linked_page*) pp;
@@ -404,7 +412,7 @@ void memory_free_page(void *pp)
     //add to the free list
     new_free_list_head->next = free_list;
     free_list = new_free_list_head;
-
+    console_printf("line: %d \n", __LINE__);
 
 }
 
@@ -414,6 +422,9 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
         panic("not well formed because Address bits 63:38 must be all 0 or all 1");
     }
 
+    console_printf("line: %d \n", __LINE__);
+    
+
     void * newPP = memory_alloc_page();
 
     struct pte * pt2 = active_space_root();
@@ -422,7 +433,7 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
     struct pte* pt0_pte = walk_pt(pt2, vma, 1);
 
-    struct pte leaf = leaf_pte(newPP, rwxug_flags | PTE_V);
+    struct pte leaf = leaf_pte(newPP, rwxug_flags);
 
     *pt0_pte = leaf;
 
@@ -436,9 +447,10 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
     if(size%PAGE_SIZE > 0){ //if there is more space needed that didn't take up a whole page
         numPages++;
     }
+    console_printf("line: %d \n", __LINE__);
 
     for(int x = 0; x< numPages; x++){
-        memory_alloc_and_map_page(vma+x, rwxug_flags);
+        memory_alloc_and_map_page(vma+ (x * PAGE_SIZE) , rwxug_flags);
     }
 
     return (void *) vma;        // Should be correct return value
@@ -471,7 +483,7 @@ void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flag
 
     for(int x = 0; x < numPages; x++)
     {
-        memory_set_page_flags(vp + x, rwxug_flags); // Right way to set each PTE's flags?
+        memory_set_page_flags(vp + (x * PAGE_SIZE), rwxug_flags); // Right way to set each PTE's flags?
     }
 }
 
@@ -479,9 +491,10 @@ void memory_unmap_and_free_user(void)
 {
     // Taken from reclaim
 
+
     struct pte* pt2 = active_space_root();
 
-        for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
+    for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
 
 
         //get the current pt1 entry
@@ -541,14 +554,18 @@ void memory_unmap_and_free_user(void)
 
                 //at this point we are looking at a physical an entry pointing to a physical page we want to free
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
+                console_printf("line: %d \n", __LINE__);
                 memory_free_page(pp);       //free physical page
             }
             memory_free_page(pt0);
+            console_printf("line: %d \n", __LINE__);
 
         }
         memory_free_page(pt1);
+        console_printf("line: %d \n", __LINE__);
     }
     memory_free_page(pt2);
+    console_printf("line: %d \n", __LINE__);
 
     // Unmaps any page in user range mapped with U flag set and frees underlying physical page 
 
@@ -561,7 +578,8 @@ void memory_unmap_and_free_user(void)
     // For all entries in given pt1...,
     // For all entries in given pt0...,
     // If associated file has U bit set, unmap and free page
-    sfence_vma();
+    // sfence_vma();
+    console_printf("line: %d \n", __LINE__);
 }
 
 /*
@@ -594,6 +612,16 @@ void memory_handle_page_fault(const void * vptr)
 
 // Takes pointer to active root and walks down page table structure using VMA fields of vma. If create is non-zero, then it creates page tables to walk to leaf page table
 struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
+    if (!wellformed_vma(vma)) return NULL;
+
+    uint_fast8_t u_g_flags = 0;
+
+    if((vma>= USER_START_VMA) && (vma< USER_END_VMA)){
+        u_g_flags = PTE_U;
+        console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+    }
+    
+
     if ((root[VPN2(vma)].flags & PTE_V) == 0){
         if(create == 0){
             return NULL;
@@ -604,7 +632,10 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
         // uint64_t pt1_new_ppn = pageptr_to_pagenum(pt1_new);
         // root[VPN2(vma)].ppn = pt1_new_ppn ;
 
-        root[VPN2(vma)] = ptab_pte(pt1_new, PTE_U);
+        // memset(pt1_new,0,PAGE_SIZE);
+
+
+        root[VPN2(vma)] = ptab_pte(pt1_new, 0);
         
 
         //set that pte is valid now because there is a table here
@@ -624,7 +655,7 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
         struct pte * pt0_new = (struct pte *)memory_alloc_page();
         // uint64_t pt0_new_ppn = pageptr_to_pagenum(pt0_new);
         // pt1[VPN1(vma)].ppn = pt0_new_ppn ;
-        pt1[VPN1(vma)] = ptab_pte(pt0_new, PTE_U);
+        pt1[VPN1(vma)] = ptab_pte(pt0_new, 0);
 
         //that pte is valid now because there is a table here
         // pt1[VPN1(vma)].flags |= PTE_V;

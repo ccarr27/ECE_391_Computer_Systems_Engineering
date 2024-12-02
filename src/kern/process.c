@@ -71,20 +71,24 @@ void procmgr_init(void)
 // Executes program referred to by I/O interface
 int process_exec(struct io_intf * exeio)
 {
+   
 // 1. Any virtual memory mappings belonging to other user processes should be unmapped
-    memory_unmap_and_free_user();
+    // memory_unmap_and_free_user();        NEED IT EVENTUALLY
 
 // Not for CP2, but may later need to create new root table and initalize with default mapping for a user process
 
 
 // 2. Executable loaded from I/O interface provided as argument into the mapped pages
 
+    console_printf("file: %s line: %d \n",__FILE__, __LINE__);
     void (*exe_entry)(void);
+    //void (*exe_entry)(struct io_intf*);
     int loaded = elf_load(exeio, &exe_entry);
     if(loaded < 0)
     {
         console_printf("Elf load failed return was: %d", loaded);
     }
+    console_printf("file: %s line: %d \n",__FILE__, __LINE__);
     //elf_load
 
 // 3. Thread associated with process needs to be started in user-mode (assembly function in thrasm.s would be helpful)
@@ -97,8 +101,8 @@ int process_exec(struct io_intf * exeio)
 
     int interrupt = intr_disable();
     // Get usp from sscratch? pc from sepc?
-
-    thread_jump_to_user(csrr_sscratch() , csrr_sepc()); //USP, UPC
+    
+    thread_jump_to_user(USER_STACK_VMA, exe_entry); //USP, UPC will have to change -> Should now be okay
     intr_restore(interrupt);
     return 0;
 }
