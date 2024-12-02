@@ -67,6 +67,9 @@ memory.elf: $(CORE_OBJS) memory_tests.o companion.o
 syscalls.elf: $(CORE_OBJS) syscalltests.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
+noexecuteflagtest.elf: $(CORE_OBJS) noexecuteflagtest.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
 run-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS)  
 
@@ -74,6 +77,9 @@ run-memory: memory.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 debug-kernel: kernel.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+debug-noexecuteflagtest: noexecuteflagtest.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 run-syscall: syscalls.elf
