@@ -153,9 +153,7 @@ Outputs: Returns 0 (won't return this value)
 
 Effects: Calls process_exit to exit the system calls
 
-Description: We look at the a[7] value from the trap frame to determine which system call we want to make.
-We then call the specific system call with the needed parameters for that function. Returns 0 or an error code.
-
+Description: Exits the currently running process
 */
 
 int sysexit(void)
@@ -163,6 +161,18 @@ int sysexit(void)
     process_exit();
     return 0;
 }
+
+/*
+int sysexec(int fd)
+
+Inputs: fd - file descriptor to be opened
+
+Outputs: Returns 0 or error code
+
+Effects: It halts the currently running program and starts a new program
+
+Description: Calls process_exec on the process given by the file descriptor input
+*/
 
 int sysexec(int fd)
 {
@@ -175,6 +185,22 @@ int sysexec(int fd)
     // Validate that fd is a valid descripter
     return 0;
 }
+
+/*
+int sysdevopen(int fd, const char * name, int instno)
+
+Inputs: 
+fd - file descriptor to be opened
+name - name of file descriptor to be opened
+instno - instance number to of file descriptor to be opened
+
+Outputs: Returns 0 or an error code
+
+Effects: Calls device_open to open a specific device given by the input parameters
+
+Description: sysdevopen allocates memory for the io_intf device, which is passed through device_open
+and stored in the iotab for the current process to be used for future operations.
+*/
 
 int sysdevopen(int fd, const char * name, int instno)
 {
@@ -191,7 +217,7 @@ int sysdevopen(int fd, const char * name, int instno)
         // Request specific file descriptor number
     }
     else{
-        int x = 0;
+        int x = 0;      // Else find next available iotab
         while(current_process() -> iotab[x] != NULL)
         {
             if(x <= PROCESS_IOMAX)

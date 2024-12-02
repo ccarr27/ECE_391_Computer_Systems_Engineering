@@ -64,6 +64,9 @@ kernel.elf: $(CORE_OBJS) main.o companion.o
 memory.elf: $(CORE_OBJS) memory_tests.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
+syscalls.elf: $(CORE_OBJS) syscalltests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
 run-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS)  
 
@@ -72,6 +75,10 @@ run-memory: memory.elf
 
 debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+run-syscall: syscalls.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi

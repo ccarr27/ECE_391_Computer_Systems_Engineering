@@ -1,4 +1,4 @@
-#include "excp.h"
+#include "excp.c"
 
 struct trap_frame {
     uint64_t x[32];   
@@ -13,17 +13,19 @@ trap_frame temp_frame = {
 };
 
 
-umode_excp_handler(8, )
+int64_t sysmsgout(const char *message) {
+    printf("%s\n", message);
+    return 0;
+}
 
+int main() {
+    struct trap_frame temp_frame = {0};
+    const char *message = "Hello, World!";
 
-// Example testing function
-void test_cat_function() {
-    // Simulate invoking the `cat` function using the trap frame
-    temp_frame.x[10] = (uint64_t)"testfile.txt"; // Set an argument register (e.g., x10/a0) to the filename
+    temp_frame.x[TFR_A7] = SYSCALL_MSGOUT;
+    temp_frame.x[TFR_A0] = (uint64_t)message;
 
-    // Call the `cat` function and handle the trap frame
-    cat((char*)temp_frame.x[10]);
+    syscall(&temp_frame);
 
-    // Simulate a return from the function
-    temp_frame.sepc += 4; // Increment the program counter as if the instruction was executed
+    return 0;
 }

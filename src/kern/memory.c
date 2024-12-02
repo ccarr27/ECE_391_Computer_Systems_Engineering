@@ -661,7 +661,7 @@ void memory_handle_page_fault(const void * vptr)
     if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
     {
         
-
+    
        memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
     }
     else
@@ -690,13 +690,6 @@ Description: this goes do down the tables and either creates them or not and the
 
 struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
     if (!wellformed_vma(vma)) return NULL;
-
-
-
-    if((vma>= USER_START_VMA) && (vma< USER_END_VMA)){
-
-        console_printf("file: %s line: %d \n",__FILE__, __LINE__);
-    }
     
 
     if ((root[VPN2(vma)].flags & PTE_V) == 0){
@@ -740,7 +733,7 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 
     //now there is for sure a pt0
     struct pte * pt0 = pagenum_to_pageptr(pt1[VPN1(vma)].ppn);
-    console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+
 
     //may need to check if what is at pt0 is valid
     return &pt0[VPN0(vma)];
