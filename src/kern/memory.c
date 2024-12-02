@@ -10,6 +10,9 @@ QUESTIONS TO ASK DURING OH:
 - For range functions, do we just do a for loopand increment virtual address each time for size?
 */
 
+#define NEXT 1
+
+
 #ifndef TRACE
 #ifdef MEMORY_TRACE
 #define TRACE
@@ -136,6 +139,23 @@ static struct pte main_pt0_0x80000[PTE_CNT]
 // EXPORTED FUNCTION DEFINITIONS
 // 
 
+/*
+void memory_init(void)
+Inputs:
+None
+
+Outputs:
+None
+
+Effects:
+memory_init sets up page tables and performs mapping of the kernel megapage, as well as starts making the free pages list.
+
+
+Description:
+Most of this function was completed for us. The given code set up the page tables, performed the 1:1 mapping, enabled paging, and initialized the heap memory manager.
+We created the free page list, by creating a linked list of count (page count), which allows us to allocate and free pages later on in the process.
+*/
+
 void memory_init(void) {
     const void * const text_start = _kimg_text_start;
     const void * const text_end = _kimg_text_end;
@@ -251,25 +271,17 @@ void memory_init(void) {
 
     // Set page equal to start of free page list
     page = free_list;
-    start = RAM_START;      //what this a for?
 
     // Create page_cnt # of nodes
-    for(int x = 0; x < page_cnt-1; x++)
+    for(int x = 0; x < page_cnt - NEXT; x++)
     {
-
-        //the space between heap_end and RAM_END should already be left intentionally alone in order for us to use
-        //so just create a pointer to each space maybe?
-
-
-
-        union linked_page * nextPage = (union linked_page *)page + 1;
+        union linked_page * nextPage = (union linked_page *)page + 1;       // For each linked_page, get the address of it and set the next page of the current page to this
         page->next = nextPage;
         page = page->next;
     }
     page->next = NULL;  //last next should be NULL so we know we're at the end when traversinag the linked list later on
 
 
-    
     // Allow supervisor to access user memory. We could be more precise by only
     // enabling it when we are accessing user memory, and disable it at other
     // times to catch bugs.
@@ -279,99 +291,50 @@ void memory_init(void) {
     memory_initialized = 1;
 }
 
+/*
+void memory_space_reclaim(void)
+Inputs:
+None
+
+Outputs:
+None
+
+Effects:
+memory_space_reclaim switches the active memory space to the main memory space and reclaimed all
+physical pages not part of the global mapping.
+
+Description:
+memory_space_reclaim reclaims the memory space that was active on entry. It does this by calling
+memory_unmap_and_free_user. It then switches to the main memory space, which is the intended function.
+*/
+
 void memory_space_reclaim(void)
 {
-    // // Get active memory space
-    // uintptr_t old_mtag = active_space_mtag();
 
-    // //Get the old root page table
-    // struct pte *old_root_table = mtag_to_root(old_mtag);
-
-    memory_unmap_and_free_user();
+    memory_unmap_and_free_user(); // Reclaim all pages that aren't global
 
     // Switch active memory space to main memory space
     memory_space_switch(main_mtag);
 
-    // // MAY BE ABLE TO CALL unmap all instead of doing this here?
-    
-    // //for all the entries in the level 2 (root) page table
-    // for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
-
-
-    //     //get the current pt1 entry
-    //     struct pte curr_pt2_entry = old_root_table[vpn2];
-
-    //     //check if it is active
-    //     if((curr_pt2_entry.flags & PTE_V) == 0 ){
-    //         continue;   //valid flag was zero so nothing to see here
-    //     }
-
-    //     //at this point it is active/valid
-
-    //     //we want to only reclaim non-global so skip if global
-    //     if(curr_pt2_entry.flags & PTE_G){
-    //         continue;//was global
-    //     }
-
-    //     //at this point it was valid and non-global so lets keep looking down the tree
-    //     struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
-
-    //     //look at every entry in the level 1 pt
-    //     for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
-    //         struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
-
-    //         //check if it is active
-    //         if((curr_pt1_entry.flags & PTE_V) == 0 ){
-    //             continue;   //valid flag was zero so nothing to see here
-    //         }
-
-    //         //at this point it is active/valid
-
-    //         //we want to only reclaim non-global so skip if global
-    //         if(curr_pt1_entry.flags & PTE_G){
-    //             continue;//was global
-    //         }
-
-    //         //at this point it was valid and non-global so lets keep looking down the tree
-    //         struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
-
-    //         for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
-    //             struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
-
-    //             //check if it is active
-    //             if((curr_pt0_entry.flags & PTE_V) == 0 ){
-    //                 continue;   //valid flag was zero so nothing to see here
-    //             }
-
-    //             //at this point it is active/valid
-
-    //             //we want to only reclaim non-global so skip if global
-    //             if(curr_pt0_entry.flags & PTE_G){
-    //                 continue;//was global
-                    
-    //             }
-
-    //             //at this point we are looking at a physical an entry pointing to a physical page we want to free
-    //             void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
-    //             memory_free_page(pp);       //free physical page
-
-    //             kfree(&pt0[vpn0]);     //set this entry to now point to null but not sure since we might just have to make v flag to 0
-    //             // pt0[vpn0].flags = pt0[vpn0].flags & !PTE_V;         //set V flag to 0 maybe?
-    //         }
-    //         // memory_free_page(pt1);
-    //         kfree(&pt1[vpn1]); 
-
-
-    //     }
-    //     kfree(&old_root_table[vpn2]);  
-
-
-    // }
-
-
     sfence_vma();
 
 }
+
+/*
+void * memory_alloc_page(void)
+Inputs:
+None
+
+Outputs:
+void * newPage - the page taken off the free list
+
+Effects:
+memory_alloc_page takes a page off the free list, so it moves the head of the free_page list
+
+Description:
+memory_alloc_page allocates a page of memory using the free pages list. It takes a page off the list and returns it so that
+it can be used as a page.
+*/
 
 void *memory_alloc_page(void)
 {
@@ -381,15 +344,29 @@ void *memory_alloc_page(void)
         panic("No free pages available");
     }
 
-    union linked_page * newPage = free_list;
-    free_list = free_list -> next;
+    union linked_page * newPage = free_list;    // Get the page from the head of the free list
+    free_list = free_list -> next;      // Move to the next page in the list
 
-    //newPage -> next = NULL;
-    // memset(newPage, 0, PAGE_SIZE);
+    memset(newPage,0, PAGE_SIZE);       // Clear data in the page
 
     return (void *) newPage;
-
 }
+
+/*
+void memory_free_page(void *pp)
+Inputs:
+pp - the physical pointer for the page we are returning to the free page list
+
+Outputs:
+None
+
+Effects:
+This function puts a page back on the free page list, adding it to the head of the free page
+
+Description:
+memory_free_page adds a page back to the free page list, first making sure that the page is aligned. 
+It sets the page as the head of the free_list, setting the next page to be the previous list's head.
+*/
 
 void memory_free_page(void *pp)
 {
@@ -400,21 +377,34 @@ void memory_free_page(void *pp)
         round_down_addr((uintptr_t)pp,PAGE_SIZE);
 
     }
-
-    console_printf("line: %d \n", __LINE__);
-
-    // memset(pp, 0, PAGE_SIZE);
     
-
     //now get the page as a linked page
     union linked_page* new_free_list_head = (union linked_page*) pp;
 
     //add to the free list
     new_free_list_head->next = free_list;
     free_list = new_free_list_head;
-    console_printf("line: %d \n", __LINE__);
 
 }
+
+/*
+void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
+Inputs:
+vma - virtual address to be mapped
+rwxug_falgs - flags to be set for the virtual address
+
+Outputs: returns the mapped vma
+
+
+Effects:
+intr_handler calls the correct interrupt handler for the interrupt represented by the given code.
+
+Description:
+intr_handler controls when specific interrupt functions are called depending on what the interrupt code was. The extern_intr_handler()
+case was already provided for us, but we had to had the timer_intr_handler() case. When mtime >= mtimecap, the MTI bit is set in the MIE reg,
+so if we have the case where the interrupt code is set to 7, we call the timer_intr_handler().
+
+*/
 
 void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 {
@@ -426,6 +416,8 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
     
 
     void * newPP = memory_alloc_page();
+
+    memset(newPP,0, PAGE_SIZE);
 
     struct pte * pt2 = active_space_root();
 
@@ -439,6 +431,21 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
     return (void *) vma;        // Should be correct return value
 }
+
+/*
+* memory_alloc_and_map_range
+Inputs: vma, size, flags we want to write
+
+
+Outputs: we return the vma of the mapped range
+
+Effects: it maps a vma accros a large range and mpas various pages
+
+Description: this first founds out how many pages we have to map and then calls
+memory malloc and map range that many times for each page
+
+
+*/
 
 void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug_flags)
 {
@@ -456,6 +463,19 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
     return (void *) vma;        // Should be correct return value
 }
 
+/*
+memory_set_page_flags
+Inputs: a vp and the flags we want to set for that vp
+
+Outputs: it does not output anything directly
+
+Effects: the effect is that the flags at that page are getting set
+
+Description: It has to call walk to walk down the page table entries to find the correct leaf pte to set the flags for
+then it sets the flags for that corresponding page 
+
+*/
+
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
 {
     //Get pte for vp
@@ -472,6 +492,19 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
     pte_0->flags = rwxug_flags | PTE_A | PTE_D | PTE_V;
 
 }
+/*
+memory_set_range_flags
+
+Inputs: takes in the vp, size, and flags to set
+
+Outputs: it outputs nothing since it just sets flags
+
+Effects: it sets the flags in a range
+
+Description: we have to find how many pages to set the flags for and call memory_set_page_flags
+for each individual page.
+
+*/
 
 void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flags)
 {
@@ -481,11 +514,24 @@ void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flag
         numPages++;
     }
 
+    // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+
     for(int x = 0; x < numPages; x++)
     {
         memory_set_page_flags(vp + (x * PAGE_SIZE), rwxug_flags); // Right way to set each PTE's flags?
     }
 }
+
+/*
+Inputs: nothing
+
+Outputs: nothing
+
+Effects: this should free the user space by clearing everything including the level 2 root table
+
+Description: this goes down the tree to make clear anything that has the user flag.
+
+*/
 
 void memory_unmap_and_free_user(void)
 {
@@ -589,35 +635,66 @@ int memory_validate_vptr_len ( const void * vp, size_t len, uint_fast8_t rwxug_f
 int memory_validate_vstr (const char * vs, uint_fast8_t ug_flags);
 */
 
+/*
+
+memory_handle_page_fault
+
+Inputs: takes in the vptr where the page fault happens
+
+
+Outputs: nothing directly
+
+Effects: it maps a page to that virtual pointer
+
+Description: when we get a page fault we memory_alloc_and_map_range and set the user flag
+
+*/
+
 void memory_handle_page_fault(const void * vptr)
 {
-
+    void *v_addr = (void *)(uintptr_t)vptr;
+    //v_addr = round_down_addr(v_addr, PAGE_SIZE); // maybe round down
     // If v flag == 0 and try to translate, page fault exception
+
+
+
     if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
     {
-        memory_alloc_and_map_page((uint64_t)vptr, PTE_U| PTE_R|PTE_W);    //allocate a read write page
+        
+
+       memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
     }
-    // If in U mode and U = 0, translate
     else
     {
         // panic("memory_handle_page_fault");
         process_exit();
     }
     // If in S mode and U = 1 and stats.SUM = 0, page fault
-
+    return;
 }
 
 // INTERNAL FUNCTION DEFINITIONS
 //
 
 // Takes pointer to active root and walks down page table structure using VMA fields of vma. If create is non-zero, then it creates page tables to walk to leaf page table
+/*
+Inputs: the root table, a vma to map, and if create is 1 we can allocate memory but if it is 0 we cant and return null
+
+Outputs:this return the pointer to the level 0 pte that will point a pp
+
+Effects: this will map return the pt0 entry
+
+Description: this goes do down the tables and either creates them or not and then once we get to the level 0 we return that pt0 entry
+
+*/
+
 struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
     if (!wellformed_vma(vma)) return NULL;
 
-    uint_fast8_t u_g_flags = 0;
+
 
     if((vma>= USER_START_VMA) && (vma< USER_END_VMA)){
-        u_g_flags = PTE_U;
+
         console_printf("file: %s line: %d \n",__FILE__, __LINE__);
     }
     
@@ -663,6 +740,7 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 
     //now there is for sure a pt0
     struct pte * pt0 = pagenum_to_pageptr(pt1[VPN1(vma)].ppn);
+    console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
     //may need to check if what is at pt0 is valid
     return &pt0[VPN0(vma)];

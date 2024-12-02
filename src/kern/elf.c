@@ -186,7 +186,6 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             //get the address of the program
             // void *v_addr = prog_header.p_vaddr;
             void *v_addr = (void *)(uintptr_t)prog_header.p_vaddr;
-            void *p_addr = (void *)(uintptr_t)prog_header.p_paddr;
 
 
             //now we make sure it falls within the bounds of x80100000 and 0x81000000
@@ -256,7 +255,9 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
     //set the rentry point of execution
     *entryptr = (void (*)(void)) elf_header.e_entry;
-    // console_printf("e_entry:%x \n", elf_header.e_entry);
+
+    console_printf("e_entry:%x \n", elf_header.e_entry);
+
     //close the file since we extracted what we needed
     // ioclose(io);
 

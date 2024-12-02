@@ -144,6 +144,7 @@ _thread_finish_jump:
         li      t0, (1<<5)
         csrs    sstatus, t0
 
+        mv      sp, a1
 
 
         # csrw    sscratch, a1

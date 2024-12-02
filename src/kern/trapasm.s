@@ -156,8 +156,8 @@ _trap_entry_from_umode:
 
         # Must figure out how to store the thread in tp. Needed for multithread per process    
         # mv tp, sscratch
-
         addi    sp, sp, -34*8   # allocates room for trap frame
+
         sd      t6, 31*8(sp)    # save t6 (x31) in trap frame    //sam
         csrr    t6, sscratch    # copy original sp
         sd      t6, 2*8(sp)     # save origin sp
@@ -182,7 +182,7 @@ _trap_entry_from_umode:
         # We're returning to U mode, so restore _smode_trap_entry_from_umode as
         # trap handler.
 
-        la      t6, _trap_entry_from_smode
+        la      t6, _trap_entry_from_umode
         csrw    stvec, t6
 
         restore_sstatus_and_sepc
@@ -190,9 +190,14 @@ _trap_entry_from_umode:
 
 
         # TODO: FIXME your code here
+        addi    sp, sp, 34*8   # allocates room for trap frame
+
+        csrw   sscratch, sp    
+
+        addi    sp, sp, -34*8   # allocates room for trap frame
 
         ld      t6, 31*8(sp)
-        ld      sp, 2*8(sp)
+        ld      sp, 2*8(sp)   
 
         sret
 

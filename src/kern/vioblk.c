@@ -467,7 +467,7 @@ long vioblk_read(
         }
         // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
-        uint64_t x = char_buf + (uint64_t)total_read;
+        
 
         // console_printf("%x \n", x);
         // Copy data from block buffer to user buffer

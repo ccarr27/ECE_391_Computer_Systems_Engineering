@@ -426,7 +426,7 @@ void init_idle_thread(void) {
 
     idle_thread.stack_base = _idle_stack_anchor;
     idle_thread.stack_size = _idle_stack_anchor - _idle_stack_lowest;
-    _thread_setup(&idle_thread, _idle_stack_anchor, idle_thread_func);
+    _thread_setup(&idle_thread, _idle_stack_anchor, (void*) idle_thread_func);  // added (void *)
     tlinsert(&ready_list, &idle_thread); // interrupts still disabled
 
 }
