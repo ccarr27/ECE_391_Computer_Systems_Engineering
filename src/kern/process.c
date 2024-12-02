@@ -102,7 +102,7 @@ int process_exec(struct io_intf * exeio)
     int interrupt = intr_disable();
     // Get usp from sscratch? pc from sepc?
     
-    thread_jump_to_user(USER_STACK_VMA, exe_entry); //USP, UPC will have to change -> Should now be okay
+    thread_jump_to_user(USER_STACK_VMA, (uintptr_t) exe_entry); //USP, UPC will have to change -> Should now be okay
     intr_restore(interrupt);
     return 0;
 }

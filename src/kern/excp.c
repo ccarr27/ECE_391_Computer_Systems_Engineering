@@ -58,11 +58,13 @@ void umode_excp_handler(unsigned int code, struct trap_frame * tfr) {
     switch (code) {
     // TODO: FIXME dispatch to various U mode exception handlers
     case(RISCV_SCAUSE_ECALL_FROM_UMODE):
+        console_printf("file: %s line: %d \n",__FILE__, __LINE__);
         syscall_handler(tfr);       //call syscall_handler
         break;
     
     case(RISCV_SCAUSE_STORE_PAGE_FAULT):
-        memory_handle_page_fault((void*)tfr->sepc);
+        console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+        memory_handle_page_fault((void *)tfr->sepc);
         break;
     
     default:
