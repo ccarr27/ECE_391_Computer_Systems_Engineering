@@ -395,8 +395,14 @@ void memory_free_page(void *pp)
 
     //check if alligned
     if(aligned_ptr(pp,PAGE_SIZE) != 0){
-        panic("page not aligned so we can't add it to free list");
+        // panic("page not aligned so we can't add it to free list");
+        console_printf("line: %d \n", __LINE__);
+        round_down_addr((uintptr_t)pp,PAGE_SIZE);
+        console_printf("line: %d \n", __LINE__);
     }
+
+    console_printf("line: %d \n", __LINE__);
+    
 
     //now get the page as a linked page
     union linked_page* new_free_list_head = (union linked_page*) pp;
@@ -404,7 +410,7 @@ void memory_free_page(void *pp)
     //add to the free list
     new_free_list_head->next = free_list;
     free_list = new_free_list_head;
-
+    console_printf("line: %d \n", __LINE__);
 
 }
 
@@ -413,6 +419,9 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
     if(wellformed_vma(vma) == 0){ 
         panic("not well formed because Address bits 63:38 must be all 0 or all 1");
     }
+
+    console_printf("line: %d \n", __LINE__);
+    
 
     void * newPP = memory_alloc_page();
 
@@ -436,9 +445,10 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
     if(size%PAGE_SIZE > 0){ //if there is more space needed that didn't take up a whole page
         numPages++;
     }
+    console_printf("line: %d \n", __LINE__);
 
     for(int x = 0; x< numPages; x++){
-        memory_alloc_and_map_page(vma+x, rwxug_flags);
+        memory_alloc_and_map_page(vma+ (x * PAGE_SIZE) , rwxug_flags);
     }
 
     return (void *) vma;        // Should be correct return value
@@ -471,13 +481,14 @@ void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flag
 
     for(int x = 0; x < numPages; x++)
     {
-        memory_set_page_flags(vp + x, rwxug_flags); // Right way to set each PTE's flags?
+        memory_set_page_flags(vp + (x * PAGE_SIZE), rwxug_flags); // Right way to set each PTE's flags?
     }
 }
 
 void memory_unmap_and_free_user(void)
 {
     // Taken from reclaim
+
 
     struct pte* pt2 = active_space_root();
 
@@ -541,14 +552,18 @@ void memory_unmap_and_free_user(void)
 
                 //at this point we are looking at a physical an entry pointing to a physical page we want to free
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
+                console_printf("line: %d \n", __LINE__);
                 memory_free_page(pp);       //free physical page
             }
             memory_free_page(pt0);
+            console_printf("line: %d \n", __LINE__);
 
         }
         memory_free_page(pt1);
+        console_printf("line: %d \n", __LINE__);
     }
     memory_free_page(pt2);
+    console_printf("line: %d \n", __LINE__);
 
     // Unmaps any page in user range mapped with U flag set and frees underlying physical page 
 
@@ -561,7 +576,8 @@ void memory_unmap_and_free_user(void)
     // For all entries in given pt1...,
     // For all entries in given pt0...,
     // If associated file has U bit set, unmap and free page
-    sfence_vma();
+    // sfence_vma();
+    console_printf("line: %d \n", __LINE__);
 }
 
 /*

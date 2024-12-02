@@ -151,36 +151,50 @@ _trap_entry_from_umode:
         # stack pointer. We start by allocating a trap frame and saving t6
         # there, so we can use it as a temporary register.
 
-
-        csrr sp, sscratch
-        addi sp, sp, -34*8     # allocates room for trap frame
-        sd  t6, 31*8(sp)    # save t6 (x31) in trap frame    //sam
-
-
-
         # TODO: FIXME your code here
+        csrrw   sp, sscratch, sp       
+
+        # Must figure out how to store the thread in tp. Needed for multithread per process    
+        # mv tp, sscratch
+
+        addi    sp, sp, -34*8   # allocates room for trap frame
+        sd      t6, 31*8(sp)    # save t6 (x31) in trap frame    //sam
+        csrr    t6, sscratch    # copy original sp
+        sd      t6, 2*8(sp)     # save origin sp
+
+        save_gprs_except_t6_and_sp
+        save_sstatus_and_sepc
 
         # We're now in S mode, so update our trap handler address to
         # _trap_entry_from_smode.
 
-        la      t1, _trap_entry_from_smode
-        csrw    stvec, t1
+        la      t6, _trap_entry_from_smode
+        csrw    stvec, t6
 
         # j _trap_entry_from_smode                //sam
 
-
-
         # TODO: FIXME your code here
+
+        call trap_umode_cont
 
         # U mode handlers return here because the call instruction above places
         # this address in /ra/ before we jump to exception or trap handler.
         # We're returning to U mode, so restore _smode_trap_entry_from_umode as
         # trap handler.
 
-        restore_gprs_except_t6_and_sp
+        la      t6, _trap_entry_from_smode
+        csrw    stvec, t6
+
         restore_sstatus_and_sepc
+        restore_gprs_except_t6_and_sp
+
 
         # TODO: FIXME your code here
+
+        ld      t6, 31*8(sp)
+        ld      sp, 2*8(sp)
+
+        sret
 
         # Execution of trap entry continues here. Jump to handlers.
 
@@ -193,7 +207,7 @@ trap_umode_cont:
         # I think this stuff is for system calls but not sure - Sam
 
         csrr a0, scause
-        mv a1, sp       //may be different
+        mv a1, sp       #may be different
 
         bgez a0, umode_excp_handler
 

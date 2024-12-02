@@ -5,6 +5,7 @@
 #include "csr.h"
 #include "halt.h"
 #include "memory.h"
+#include "syscall.c"
 
 #include <stddef.h>
 

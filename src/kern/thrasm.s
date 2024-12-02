@@ -126,11 +126,29 @@ _thread_finish_jump:
         # Set sepc = upc, sstatus.SPP = 0, sstatus.SPIE = 1
         # ret?
 
-        csrw    sscratch, a1
-        j _trap_entry_from_umode
-        csrw    sepc, a2
+        # a0    thread_stack_anchor
+        # a1    usp
+        # a2    upc
+
+        csrw    sscratch, a0 
+        la      t6, _trap_entry_from_umode
+        csrw    stvec, t6
+        csrw    sepc, a2 
+        csrw    sscratch, a0 
+
+        li      t0, (1<<8)
+        csrc    sstatus, t0
+
+        li      t0, (1<<5)
+        csrs    sstatus, t0
+
+
+
+        # csrw    sscratch, a1
+        # j _trap_entry_from_umode
+        # csrw    sepc, a2
         
-        sret
+        # sret
 
 
 

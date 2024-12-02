@@ -11,18 +11,18 @@
 #include "thread.h"
 #include "process.h"
 
-#include "syscall.h"
+// #include "syscall.h"
 #include "scnum.h"
 
 #include "device.h"
 #include "fs.h"
 
 
-struct trap_frame {
-             uint64_t x[32]; // x[0] used to save tp when in U mode
-             uint64_t sstatus;
-             uint64_t sepc;
-         };
+// struct trap_frame {
+//              uint64_t x[32]; // x[0] used to save tp when in U mode
+//              uint64_t sstatus;
+//              uint64_t sepc;
+//          };
 
 
 extern void syscall_handler(struct trap_frame *tfr);
@@ -229,10 +229,10 @@ static long syswrite(int fd, const void *buf, size_t len)
         return -EIO;
     }
     void * pos;
-    void * len;
+    void * size;
     ioctl(current_process() -> iotab[fd], IOCTL_GETPOS, pos);
-    ioctl(current_process() -> iotab[fd], IOCTL_GETLEN, len);
-    if(pos >= len)
+    ioctl(current_process() -> iotab[fd], IOCTL_GETLEN, size);
+    if(pos >= size)
     {
         return 0;
     }
