@@ -226,18 +226,21 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             
             console_printf("line: %d \n", __LINE__);
 
-            memory_alloc_and_map_range((uintptr_t)v_addr, prog_header.p_memsz, rwx_flags);
-
+            memory_alloc_and_map_range((uintptr_t)v_addr, prog_header.p_memsz, PTE_W | PTE_R);
 
 
             console_printf("line: %d \n", __LINE__);
+
+            
+
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
                 console_printf("line: %d \n", __LINE__);
                 
             }
             console_printf("line: %d \n", __LINE__);
-            
+
+            memory_set_range_flags(v_addr,prog_header.p_memsz, rwx_flags);
 
             // console_printf("pos after read: %d \n", pos);
             // console_printf("we read: %d \n", prog_header.p_filesz);

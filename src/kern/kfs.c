@@ -207,7 +207,10 @@ Output: long that usually if success equals 0
 
 long fs_read(struct io_intf* io, void * buf, unsigned long n)
 {
-
+    // if paging
+    // take * buf into its physical address somehow
+    // Use walk
+    // root table stored in satp
     
     struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
