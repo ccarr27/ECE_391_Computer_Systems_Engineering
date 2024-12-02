@@ -113,6 +113,19 @@ _thread_setup:
 #      uintptr_t usp, uintptr_t upc, ...);
 
 
+# _thread_finish_jump
+#
+# Inputs: a0 - thread stack anchor, a1 - usp, a2 - upc
+#
+# Outputs: None
+#
+#
+# Effects: Sets up the program to either jump to umode or move to the start of the executable program
+#
+# Description: _thread_finish_jump allows us to jump to wherever we want to continue running from
+#
+
+
 _thread_finish_jump:
         # While in user mode, sscratch points to a struct thread_stack_anchor
         # located at the base of the stack, which contains the current thread
@@ -120,7 +133,7 @@ _thread_finish_jump:
 
         # TODO: FIXME your code here
 
-        # I think...
+        # 
         # Set sscratch to kernel stack pointer
         # Set stvec to trap entry from umode
         # Set sepc = upc, sstatus.SPP = 0, sstatus.SPIE = 1

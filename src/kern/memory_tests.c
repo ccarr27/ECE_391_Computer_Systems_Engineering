@@ -136,7 +136,7 @@ void main(void) {
     console_printf("\nWriting kernel page from user mode: \n"); // Test 1
     long * testKernelMem1 = 0x8000b000;
     long * testKernelMem2 = 0x8000c000;
-    *testKernelMem1 = 0xabcd;
+    *testKernelMem2 = 0xabcd;
 
     console_printf("\nReading kernel page from user mode: \n"); // Test 2
     long * testKernelMem = 0x8000c000;
@@ -156,6 +156,10 @@ void main(void) {
     console_printf("Write Processed\n");
 
     console_printf("\nExecuting instructions from a page without execute permissions:s\n"); // Test 5
+    void * noExecutePage = memory_alloc_and_map_page(USER_START_VMA+(290 * PAGE_SIZE), 0);
+    char * executePage = (char *)noExecutePage;
+    //write code to put and execute instructions from that page
+
 
 
 

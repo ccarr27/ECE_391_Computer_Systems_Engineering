@@ -1,9 +1,6 @@
 // main.c - Main function: runs shell to load executable
 //
 
-#ifdef MAIN_TRACE
-#define TRACE
-#endif
 
 #ifdef MAIN_DEBUG
 #define DEBUG

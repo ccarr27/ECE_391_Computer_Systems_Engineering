@@ -54,16 +54,30 @@ void smode_excp_handler(unsigned int code, struct trap_frame * tfr) {
 	default_excp_handler(code, tfr);
 }
 
+/*
+umode_excp_handler
+Inputs: code - the exception code, tfr - the current trap frame
+
+Outputs: None
+
+Effects: Redirects to the proper handler depending on the exception code
+
+Description: Handles several cases depending on the code. If the code represents an ecall, we pass off to the syscall handler.
+When we have a store page fault, we move to memory_handle_page_fault. Otherwise, we move to default_excp_handler, which will
+print out the exception that has occured. 
+
+*/
+
 void umode_excp_handler(unsigned int code, struct trap_frame * tfr) {
     switch (code) {
     // TODO: FIXME dispatch to various U mode exception handlers
     case(RISCV_SCAUSE_ECALL_FROM_UMODE):
-        console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+        // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
         syscall_handler(tfr);       //call syscall_handler
         break;
     
     case(RISCV_SCAUSE_STORE_PAGE_FAULT):
-        console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+        // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
         memory_handle_page_fault((void *)tfr->sepc);
         break;
     

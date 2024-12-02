@@ -199,7 +199,8 @@ Outputs: Returns 0 or an error code
 Effects: Calls device_open to open a specific device given by the input parameters
 
 Description: sysdevopen allocates memory for the io_intf device, which is passed through device_open
-and stored in the iotab for the current process to be used for future operations.
+and stored in the iotab for the current process to be used for future operations. If fd is negative, find the next available iotab, 
+otherwise open the specified io tab from fd.
 */
 
 int sysdevopen(int fd, const char * name, int instno)
@@ -239,6 +240,22 @@ int sysdevopen(int fd, const char * name, int instno)
     // Returns file descriptor on success, negative on error
     return 0;
 }
+
+/*
+int sysfsopen(int fd, const char * name)
+
+Inputs: fd - the file descriptor we want to open
+name - name of file we want to open
+
+Outputs: Returns 0 or error code
+
+Effects: Calls fs_open to open the given file name, sets the necessary iotab to the opened file
+
+Description: sysfsopen allocates memory for the io_intf device, which is passed through fs_open
+and stored in the iotab for the current process to be used for future operations. If fd is negative, find the next available iotab, 
+otherwise open the specified io tab from fd.
+
+*/
 
 int sysfsopen(int fd, const char * name)
 {
@@ -280,6 +297,22 @@ int sysfsopen(int fd, const char * name)
     return fd;
 }
 
+/*
+int sysread(int fd, void *buf, size_t bufsz)
+
+Inputs: fd - the file descriptor we want to read from
+buf - the buffer we want to write into
+bufsz - the number of bytes we want to read
+
+Outputs: Returns 0 or error code
+
+Effects: Calls ioread on the given device or file to read from the io device.
+
+Description: sysread reads bufsz bytes from the io specified by fd into buf. It also checks to make sure that the amount of bytes
+read is not greater than the size of of the io device.
+
+*/
+
 static long sysread(int fd, void *buf, size_t bufsz)
 {
     int val = ioread(current_process() -> iotab[fd], buf, bufsz);
@@ -290,6 +323,7 @@ static long sysread(int fd, void *buf, size_t bufsz)
     }
     void * pos = kmalloc(sizeof(uint64_t));
     void * len = kmalloc(sizeof(uint64_t));
+    // Checks that we have not gone past the length of the file
     ioctl(current_process() -> iotab[fd], IOCTL_GETPOS, pos);
     ioctl(current_process() -> iotab[fd], IOCTL_GETLEN, len);
     if(pos >= len)
@@ -301,6 +335,22 @@ static long sysread(int fd, void *buf, size_t bufsz)
     return val;
 }
 
+/*
+int syswrite(int fd, void *buf, size_t len)
+
+Inputs: fd - the file descriptor we want to write into
+buf - the buffer we want to read from
+len - the number of bytes we want to write
+
+Outputs: Returns 0 or error code
+
+Effects: Calls iowrite on the given device or file to read from the io device.
+
+Description: syswrite writes bufsz bytes from the buf into the io specified by fd into. It also checks to make sure that the amount of bytes
+written is not greater than the size of of the io device.
+
+*/
+
 static long syswrite(int fd, const void *buf, size_t len)
 {
     int val = iowrite(current_process() -> iotab[fd], buf, len);
@@ -309,6 +359,7 @@ static long syswrite(int fd, const void *buf, size_t len)
     {
         return -EIO;
     }
+     // Checks that we have not gone past the length of the file
     void * pos = kmalloc(sizeof(uint64_t));
     void * size = kmalloc(sizeof(uint64_t));
     ioctl(current_process() -> iotab[fd], IOCTL_GETPOS, pos);
@@ -322,6 +373,21 @@ static long syswrite(int fd, const void *buf, size_t len)
     return val;
 }
 
+/*
+int sysioctl(int fd, void *buf, size_t len)
+
+Inputs: fd - the file descriptor we want to perform an ioctl with
+cmd - the specific ioctl command we want to perform
+arg - the argument where we put the return of the ioctl
+
+Outputs: Returns output from ioctl (0 or error code)
+
+Effects: Calls ioctl on the given device or file.
+
+Description: sysioctl performs an ioctl with the given iotab. The return value of the function is stored in temmp, which is then returned
+
+*/
+
 static int sysioctl(int fd, int cmd, void * arg)
 {
     int temp = ioctl(current_process() -> iotab[fd], cmd, arg);
@@ -329,13 +395,25 @@ static int sysioctl(int fd, int cmd, void * arg)
     return temp;
 }
 
+/*
+int sysclose(int f)
+
+Inputs: fd - the file descriptor we want to cos
+
+Outputs: Returns 0
+
+Effects: Calls ioclose on the given device or file to close itt.
+
+Description: sysclose goes to the io device in the iotab specified by the fd and closes it. We then set the iotab[fd] to NULL so that
+it can be used for another device or file later on. 
+
+*/
+
 int sysclose(int fd)
 {
     ioclose(current_process() -> iotab[fd]);
-    //kfree iotab[fd]
     // fd no longer valid
     current_process() -> iotab[fd] = NULL;
-    // returns 0 on success code, error code on error
     return 0;
 }
 

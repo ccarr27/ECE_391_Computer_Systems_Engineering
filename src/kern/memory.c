@@ -412,7 +412,7 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
         panic("not well formed because Address bits 63:38 must be all 0 or all 1");
     }
 
-    console_printf("line: %d \n", __LINE__);
+    // console_printf("line: %d \n", __LINE__);
     
 
     void * newPP = memory_alloc_page();
@@ -444,7 +444,6 @@ Effects: it maps a vma accros a large range and mpas various pages
 Description: this first founds out how many pages we have to map and then calls
 memory malloc and map range that many times for each page
 
-
 */
 
 void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug_flags)
@@ -454,7 +453,7 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
     if(size%PAGE_SIZE > 0){ //if there is more space needed that didn't take up a whole page
         numPages++;
     }
-    console_printf("line: %d \n", __LINE__);
+    // console_printf("line: %d \n", __LINE__);
 
     for(int x = 0; x< numPages; x++){
         memory_alloc_and_map_page(vma+ (x * PAGE_SIZE) , rwxug_flags);
@@ -661,7 +660,7 @@ void memory_handle_page_fault(const void * vptr)
     if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
     {
         
-    
+    console_printf("file: %s line: %d. making page for fault at: %x\n",__FILE__, __LINE__, vptr);
        memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
     }
     else

@@ -54,6 +54,20 @@ char procmgr_initialized = 0;
 // EXPORTED FUNCTION DEFINITIONS
 //
 
+/*
+void procmgr_init(void)
+
+Inputs: None
+
+Outputs: None
+
+Effects: Creates the global main_proc process retroactively
+
+Description: This function creates the initial process. It will always have an ID of 0, because it will always be the first process.
+We can then assign its thread ID, mtag, and set the process of it using the corresponding functions below. 
+
+*/
+
 void procmgr_init(void)
 {
     main_proc.id = 0;       // init process always assigned process ID 0
@@ -64,9 +78,22 @@ void procmgr_init(void)
 
     thread_set_process(main_proc.tid, &main_proc);      // Creates process 0 around main thread and address space
 
-    // Don't think we need to set iotab, syscalls will do that
-
 }
+
+/*
+int process_exec(struct io_intf * exeio)
+
+Inputs: exeio - The I/O interface that we want to create a process around
+
+Outputs: Returns 0 (won't get here)
+
+Effects: process_exec has three main requirements. It first unmaps all virtual memory mappings belonging to other user processes. It then
+creates a 2nd level root page table (for CP3). Then, it loads the executable using elf_load, before finally jumping to user mode with the desired upc and usp. 
+
+Description: process_exec allows us to run any program with an io interface. After reading the file using elf_load, we can run the executable by
+jumping to user mode with the entry pointer as the upc, which allows the jump_to_user function to return to the beginning of the program we want to run.
+
+*/
 
 // Executes program referred to by I/O interface
 int process_exec(struct io_intf * exeio)
@@ -80,7 +107,6 @@ int process_exec(struct io_intf * exeio)
 
 // 2. Executable loaded from I/O interface provided as argument into the mapped pages
 
-    console_printf("file: %s line: %d \n",__FILE__, __LINE__);
     void (*exe_entry)(void);
     //void (*exe_entry)(struct io_intf*);
     int loaded = elf_load(exeio, &exe_entry);
@@ -88,7 +114,6 @@ int process_exec(struct io_intf * exeio)
     {
         console_printf("Elf load failed return was: %d", loaded);
     }
-    console_printf("file: %s line: %d \n",__FILE__, __LINE__);
     //elf_load
 
 // 3. Thread associated with process needs to be started in user-mode (assembly function in thrasm.s would be helpful)
@@ -100,12 +125,25 @@ int process_exec(struct io_intf * exeio)
     // interrupts must be disabled when setting up jump
 
     int interrupt = intr_disable();
-    // Get usp from sscratch? pc from sepc?
     
     thread_jump_to_user(USER_STACK_VMA, (uintptr_t) exe_entry); //USP, UPC will have to change -> Should now be okay
     intr_restore(interrupt);
     return 0;
 }
+
+/*
+void process_exit(void)
+
+Inputs: None
+
+Outputs: None
+
+Effects: Closes the current process and cleans up the resources used by it
+
+Description: process_exit first gets the current process, reclaims the memory associated with it, and sets all of the iotab values to NULL
+to ensure that all of the devices have been released.
+
+*/
 
 void process_exit(void)
 {
@@ -116,10 +154,11 @@ void process_exit(void)
 
     for(int x = 0; x < 16; x++)
     {
-        if(curr -> iotab[x] -> ops != NULL) // May need to check if iotab[x] != NULL (depends on io_intf default value)
+        if(curr -> iotab[x] -> ops != NULL)
         {
-        ioclose(curr -> iotab[x]);      // Close open IO interfaces
+        ioclose(curr -> iotab[x]);      // Close all open IO interfaces
         }
+        
     }
 
     thread_exit();          // Releases associated kernel thread?

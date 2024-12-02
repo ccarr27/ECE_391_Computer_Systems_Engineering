@@ -143,6 +143,19 @@ trap_smode_cont:
         .type   _trap_entry_from_umode, @function
         .balign 4 # Trap entry must be 4-byte aligned
 
+# _thread_entry_from_umode, _trap_umode_cont
+#
+# Inputs: None
+#
+# Outputs: None
+#
+#
+# Effects: Allows us to allocate a trap frame to use as a temp register, goes into trap_entry_from_smode, and also allows us to run systemcalls
+#
+# Description: _trap_entry_from_umode allocates a trap frame, saves the necessary regsiters, and moves to S mode. We will
+# eventually be back in umode, and we will finally call trap_umode_cont, which will call the umode_excp_handler, which is where
+# we have all of our system calls to run. 
+
 _trap_entry_from_umode:
 
         # When we're in S mode, sscratch points to the kernel thread's

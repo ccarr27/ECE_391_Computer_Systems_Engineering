@@ -223,21 +223,21 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             //load this file into memory
             // console_printf("p_filesz: %d \n", prog_header.p_filesz);
             
-            console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+            // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
             memory_alloc_and_map_range((uintptr_t)v_addr, prog_header.p_memsz, PTE_W |PTE_R|PTE_U);
 
 
-            console_printf("file: %s line: %d \n",__FILE__, __LINE__);
+            // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
 
             
 
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
                 return -8;
-                console_printf("line: %d \n", __LINE__);
+                // console_printf("line: %d \n", __LINE__);
                 
             }
-            console_printf("line: %d \n", __LINE__);
+            // console_printf("line: %d \n", __LINE__);
 
             memory_set_range_flags(v_addr,prog_header.p_memsz, rwx_flags);
 
@@ -256,7 +256,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
     //set the rentry point of execution
     *entryptr = (void (*)(void)) elf_header.e_entry;
 
-    console_printf("e_entry:%x \n", elf_header.e_entry);
+    // console_printf("e_entry:%x \n", elf_header.e_entry);
 
     //close the file since we extracted what we needed
     // ioclose(io);
