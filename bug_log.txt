@@ -8,3 +8,6 @@ the whole time i needed to pass in a size_t.
 2.In the elf.c file I needed to make sure it was a riscv file and i didn't know how to. It ended up being 
 i just needed to check for the number 243
 3. When making tests i could not 
+
+
+add-symbol-file ../user/bin/init0 0x0000000c0000000
