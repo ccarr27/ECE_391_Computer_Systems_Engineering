@@ -118,7 +118,8 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
     uint64_t filePos;
     ioctl(io, IOCTL_GETPOS, &filePos);
-    console_printf("reading from: %x \n", filePos);
+    
+    //console_printf("reading from: %x \n", filePos);
 
     if( ioread(io, &elf_header, sizeof(Elf64_Ehdr)) != (long)sizeof(Elf64_Ehdr)){      //ioread returns size of what we just read so it should be the sizeof(Elf64_Ehdr)
         return -1;  //not same size as we expected so return -1

@@ -21,7 +21,7 @@ CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -fno-asynchronous-unwind-tables
 CFLAGS += -I.
 
-all: bin/trek bin/init0 bin/init1 bin/init2
+all: bin/trek bin/init0 bin/init1 bin/init2 bin/init_test
 
 bin/init0: $(ULIB_OBJS) init0.o
 	$(LD) -T user.ld -o $@ $^
@@ -31,6 +31,9 @@ bin/init1: $(ULIB_OBJS) init1.o
 
 bin/init2: $(ULIB_OBJS) init2.o
 	$(LD) -T user.ld -o $@ $^
+
+bin/init_test: $(ULIB_OBJS) init_test.o
+	$(LD) -T user.ld -o $@ $^
 	
 clean:
-	rm -rf *.o *.elf *.asm bin/init0 bin/init1 bin/init2
+	rm -rf *.o *.elf *.asm bin/init0 bin/init1 bin/init2 bin/init_test

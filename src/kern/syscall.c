@@ -317,7 +317,7 @@ static long sysread(int fd, void *buf, size_t bufsz)
 {
     int val = ioread(current_process() -> iotab[fd], buf, bufsz);
     // end of file return 0
-    if(val != 0)
+    if(val < 0)
     {
         return -EIO;
     }

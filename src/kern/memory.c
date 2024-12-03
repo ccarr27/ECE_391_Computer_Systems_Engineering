@@ -660,9 +660,9 @@ void memory_handle_page_fault(const void * vptr)
     if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
     {
         
-    console_printf("file: %s line: %d. making page for fault at: %x\n",__FILE__, __LINE__, vptr);
+    //console_printf("file: %s line: %d. making page for fault at: %x\n",__FILE__, __LINE__, vptr);
     //    memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
-       memory_alloc_and_map_page(v_addr, PTE_W |PTE_R|PTE_U);
+       memory_alloc_and_map_page((uintptr_t) v_addr, PTE_W |PTE_R|PTE_U);
 
     }
     else

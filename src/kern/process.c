@@ -100,7 +100,7 @@ int process_exec(struct io_intf * exeio)
 {
    
 // 1. Any virtual memory mappings belonging to other user processes should be unmapped
-    // memory_unmap_and_free_user();        NEED IT EVENTUALLY
+    //memory_unmap_and_free_user();        //NEED IT EVENTUALLY
 
 // Not for CP2, but may later need to create new root table and initalize with default mapping for a user process
 
@@ -124,7 +124,8 @@ int process_exec(struct io_intf * exeio)
     //
 
     // interrupts must be disabled when setting up jump
-    console_printf("we get past elf load\n");
+    
+    //console_printf("we get past elf load\n");
 
     int interrupt = intr_disable();
     
