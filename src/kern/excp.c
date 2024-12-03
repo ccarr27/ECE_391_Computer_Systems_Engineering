@@ -78,7 +78,7 @@ void umode_excp_handler(unsigned int code, struct trap_frame * tfr) {
     
     case(RISCV_SCAUSE_STORE_PAGE_FAULT):
         // console_printf("file: %s line: %d \n",__FILE__, __LINE__);
-        memory_handle_page_fault((void *)tfr->sepc);
+        memory_handle_page_fault((void *)tfr->x[2]);
         break;
     
     default:
