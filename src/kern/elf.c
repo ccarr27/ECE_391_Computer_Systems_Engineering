@@ -116,8 +116,9 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // console_printf("Executing line %d ioreturn = %ld\n", __LINE__, ioreturn);
     // console_printf("Executing line %d elf64size= %ld\n", __LINE__, (long)sizeof(Elf64_Ehdr));
 
-
-
+    uint64_t filePos;
+    ioctl(io, IOCTL_GETPOS, &filePos);
+    console_printf("reading from: %x \n", filePos);
 
     if( ioread(io, &elf_header, sizeof(Elf64_Ehdr)) != (long)sizeof(Elf64_Ehdr)){      //ioread returns size of what we just read so it should be the sizeof(Elf64_Ehdr)
         return -1;  //not same size as we expected so return -1
@@ -199,9 +200,11 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             if(prog_header.p_flags & PF_X){
                 rwx_flags |= PTE_X;
             }
+
             if(prog_header.p_flags & PF_W){
                 rwx_flags |= PTE_W;
             }
+            
             if(prog_header.p_flags & PF_R){
                 rwx_flags |= PTE_R;
             }

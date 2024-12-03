@@ -417,7 +417,7 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
     void * newPP = memory_alloc_page();
 
-    memset(newPP,0, PAGE_SIZE);
+    // memset(newPP,0, PAGE_SIZE);
 
     struct pte * pt2 = active_space_root();
 
@@ -599,18 +599,18 @@ void memory_unmap_and_free_user(void)
 
                 //at this point we are looking at a physical an entry pointing to a physical page we want to free
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
-                console_printf("line: %d \n", __LINE__);
+                // console_printf("line: %d \n", __LINE__);
                 memory_free_page(pp);       //free physical page
             }
             memory_free_page(pt0);
-            console_printf("line: %d \n", __LINE__);
+            // console_printf("line: %d \n", __LINE__);
 
         }
         memory_free_page(pt1);
-        console_printf("line: %d \n", __LINE__);
+        // console_printf("line: %d \n", __LINE__);
     }
     memory_free_page(pt2);
-    console_printf("line: %d \n", __LINE__);
+    // console_printf("line: %d \n", __LINE__);
 
     // Unmaps any page in user range mapped with U flag set and frees underlying physical page 
 
@@ -624,7 +624,7 @@ void memory_unmap_and_free_user(void)
     // For all entries in given pt0...,
     // If associated file has U bit set, unmap and free page
     // sfence_vma();
-    console_printf("line: %d \n", __LINE__);
+    // console_printf("line: %d \n", __LINE__);
 }
 
 /*
@@ -661,7 +661,9 @@ void memory_handle_page_fault(const void * vptr)
     {
         
     console_printf("file: %s line: %d. making page for fault at: %x\n",__FILE__, __LINE__, vptr);
-       memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
+    //    memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
+       memory_alloc_and_map_page(v_addr, PTE_W |PTE_R|PTE_U);
+
     }
     else
     {

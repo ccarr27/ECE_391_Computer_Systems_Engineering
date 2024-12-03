@@ -112,7 +112,8 @@ int process_exec(struct io_intf * exeio)
     int loaded = elf_load(exeio, &exe_entry);
     if(loaded < 0)
     {
-        console_printf("Elf load failed return was: %d", loaded);
+        console_printf("Elf load failed return was: %d \n", loaded);
+        // panic("elf_load fail");
     }
     //elf_load
 
@@ -123,6 +124,7 @@ int process_exec(struct io_intf * exeio)
     //
 
     // interrupts must be disabled when setting up jump
+    console_printf("we get past elf load\n");
 
     int interrupt = intr_disable();
     

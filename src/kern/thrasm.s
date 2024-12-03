@@ -149,7 +149,7 @@ _thread_finish_jump:
         csrw    stvec, t6
 
         csrw    sepc, a2 
-        csrw    sscratch, a0 
+        # csrw    sscratch, a0 
 
         li      t0, (1<<8)
         csrc    sstatus, t0
