@@ -65,4 +65,25 @@ _exec:
         ecall
         ret
 
+        .global _fork
+        .type   _fork, @function
+_fork:
+        li      a7, SYSCALL_FORK
+        ecall
+        ret
+
+        .global _wait
+        .type   _wait, @function
+_wait:
+        li      a7, SYSCALL_WAIT
+        ecall
+        ret
+
+        .global _usleep
+        .type   _usleep, @function
+_usleep:
+        li      a7, SYSCALL_USLEEP
+        ecall
+        ret
+
         .end

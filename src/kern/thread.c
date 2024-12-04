@@ -187,6 +187,7 @@ void thread_init(void) {
     thrmgr_initialized = 1;
 }
 
+
 int thread_spawn(const char * name, void (*start)(void *), void * arg) {
     struct thread_stack_anchor * stack_anchor;
     void * stack_page;
@@ -208,12 +209,11 @@ int thread_spawn(const char * name, void (*start)(void *), void * arg) {
     
     // Allocate a struct thread and a stack
 
-    child = kmalloc(PAGE_SIZE + sizeof(struct thread));
-    child = (void*)child + PAGE_SIZE;
-    memset(child, 0, sizeof(struct thread));
+    child = kmalloc(sizeof(struct thread));
 
     stack_page = memory_alloc_page();
-    stack_anchor = stack_page + PAGE_SIZE - sizeof(struct thread_stack_anchor);
+    stack_anchor = stack_page + PAGE_SIZE;
+    stack_anchor -= 1;
     stack_anchor->thread = child;
     stack_anchor->reserved = 0;
 
@@ -225,12 +225,14 @@ int thread_spawn(const char * name, void (*start)(void *), void * arg) {
     child->parent = CURTHR;
     child->proc = CURTHR->proc;
     child->stack_base = stack_anchor;
-    child->stack_size = PAGE_SIZE - sizeof(struct thread_stack_anchor);
+    child->stack_size = child->stack_base - stack_page;
     set_thread_state(child, THREAD_READY);
 
     saved_intr_state = intr_disable();
     tlinsert(&ready_list, child);
     intr_restore(saved_intr_state);
+
+    _thread_setup(child, child->stack_base, start, arg);
     
     return tid;
 }

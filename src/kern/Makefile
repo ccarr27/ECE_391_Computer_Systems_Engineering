@@ -25,14 +25,13 @@ CORE_OBJS = \
 	uart.o \
 	virtio.o \
 	vioblk.o \
-	console.o \
-	excp.o \
-	memory.o \
 	kfs.o \
+	elf.o \
+	console.o\
+	excp.o \
 	process.o \
-	elf.o
-	# Add more object files here
-	
+	memory.o \
+	syscall.o \
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
@@ -45,9 +44,7 @@ QEMUOPTS += -machine virt -bios none -kernel $< -m 8M -nographic
 QEMUOPTS += -serial mon:stdio
 QEMUOPTS += -drive file=kfs.raw,id=blk0,if=none,format=raw
 QEMUOPTS += -device virtio-blk-device,drive=blk0
-QEMUOPTS += -serial pty
-
-QEMUOPTS += -monitor pty
+QEMUOPTS += -serial pty -serial pty # need a second screen for init5
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
@@ -61,30 +58,11 @@ all: kernel.elf
 kernel.elf: $(CORE_OBJS) main.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
-memory.elf: $(CORE_OBJS) memory_tests.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-syscalls.elf: $(CORE_OBJS) syscalltests.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-noexecuteflagtest.elf: $(CORE_OBJS) noexecuteflagtest.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
 run-kernel: kernel.elf
-	$(QEMU) $(QEMUOPTS)  
-
-run-memory: memory.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+	$(QEMU) $(QEMUOPTS)
 
 debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-debug-noexecuteflagtest: noexecuteflagtest.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-run-syscall: syscalls.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
