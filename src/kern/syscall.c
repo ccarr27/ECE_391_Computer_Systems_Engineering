@@ -315,6 +315,10 @@ read is not greater than the size of of the io device.
 
 static long sysread(int fd, void *buf, size_t bufsz)
 {
+    if(current_process() -> iotab[fd] == NULL)
+    {
+        return -EACCESS;
+    }
     int val = ioread(current_process() -> iotab[fd], buf, bufsz);
     // end of file return 0
     if(val < 0)
@@ -353,9 +357,13 @@ written is not greater than the size of of the io device.
 
 static long syswrite(int fd, const void *buf, size_t len)
 {
+    if(current_process() -> iotab[fd] == NULL)
+    {
+        return -EACCESS;
+    }
     int val = iowrite(current_process() -> iotab[fd], buf, len);
     // end of file return 0
-    if(val != 0)
+    if(val < 0)
     {
         return -EIO;
     }
@@ -390,9 +398,17 @@ Description: sysioctl performs an ioctl with the given iotab. The return value o
 
 static int sysioctl(int fd, int cmd, void * arg)
 {
-    int temp = ioctl(current_process() -> iotab[fd], cmd, arg);
-    
+    if(cmd == IOCTL_SETLEN)
+    {
+    uint64_t * tempVal = (uint64_t *) arg;
+    int temp = ioseek(current_process() -> iotab[fd], *tempVal);
     return temp;
+    }
+    else
+    {
+    int temp = ioctl(current_process() -> iotab[fd], cmd, &arg);
+    return temp;
+    }
 }
 
 /*
