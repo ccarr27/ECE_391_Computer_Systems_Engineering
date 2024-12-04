@@ -33,7 +33,7 @@ void main(void) {
 
     // Testing sysfsopen on next fd
 
-    int thirdRes = _fsopen(-1, "init0");
+    int thirdRes = _fsopen(-1, "hello");
 
         if (thirdRes < 0) {
         _msgout("_fsopen failed");
@@ -45,7 +45,7 @@ void main(void) {
 
     // Testing sysclose
 
-    int close = _close(1);
+    int close = _close(0);
       if (close < 0) {
         _msgout("_close failed");
         return;

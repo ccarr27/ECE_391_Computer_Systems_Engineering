@@ -276,7 +276,7 @@ int sysfsopen(int fd, const char * name)
         int x = 0;
         while(current_process() -> iotab[x] != NULL)
         {
-            if(x <= PROCESS_IOMAX)
+            if(x >= PROCESS_IOMAX)
             {
                 return -EINVAL;
             }
