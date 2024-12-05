@@ -72,6 +72,10 @@ extern void thread_exit(void) __attribute__ ((noreturn));
 extern void __attribute__ ((noreturn)) thread_jump_to_user (
     uintptr_t usp, uintptr_t upc);
 
+//SAM added
+
+extern int thread_fork_to_user( struct process * child_proc, const struct trap_frame * parent_tfr);
+
 
 // Returns a pointer to the process struct of a thread's process, or NULL if the
 // specified thread does not have an associated process (e.g. idle).
@@ -114,5 +118,6 @@ extern void condition_wait(struct condition * cond);
 // added to the wait queue.
 
 extern void condition_broadcast(struct condition * cond);
+
 
 #endif // _THREAD_H_

@@ -110,6 +110,9 @@ static struct thread_list ready_list;
 // INTERNAL FUNCTION DECLARATIONS
 //
 
+// Sam added
+uintptr_t memory_space_clone(uint_fast16_t asid);
+
 // Finishes initialization of the main thread; must be called in main thread.
 
 static void init_main_thread(void);
@@ -611,4 +614,24 @@ void idle_thread_func(void * arg __attribute__ ((unused))) {
             asm ("wfi");
         intr_enable();
     }
+}
+
+// Sam added
+
+int thread_fork_to_user( struct process * child_proc, const struct trap_frame * parent_tfr)
+{
+    // copy memory space
+    //memory_space_clone() 
+
+    // eventually calls thread_fork_finish in thrasm.s
+
+    // Sets up child thread
+
+    //_thread_fork_finish()
+    return 0;
+}
+
+uintptr_t memory_space_clone(uint_fast16_t asid)
+{
+    // clone memory space for current process, return new m tag
 }

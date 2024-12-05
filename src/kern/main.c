@@ -9,7 +9,7 @@
 #define DEBUG
 #endif
 
-#define INIT_PROC "fib" // name of init process executable
+#define INIT_PROC "init_test" // name of init process executable
 
 #include "console.h"
 #include "thread.h"

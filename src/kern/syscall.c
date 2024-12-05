@@ -14,6 +14,7 @@
 // #include "syscall.h"
 #include "scnum.h"
 
+
 #include "device.h"
 #include "fs.h"
 
@@ -38,6 +39,9 @@ static long sysread(int fd, void *buf, size_t bufsz);
 static long syswrite(int fd, const void *buf, size_t len);
 static int sysioctl(int fd, int cmd, void *arg);
 static int sysexec(int fd);
+static int sysfork(const struct trap_frame * tfr);
+static int syswait(int tid);
+static int sysusleep(unsigned long us);
 
 /*
 int64_t syscall(struct trap_frame * tfr)
@@ -95,6 +99,18 @@ int64_t syscall(struct trap_frame * tfr)
 
         case SYSCALL_EXEC:
             return sysexec((int)a[0]);
+            break;
+
+        case SYSCALL_FORK:
+            return sysfork((const struct trap_frame *)a[0]);
+            break;
+
+        case SYSCALL_WAIT:
+            return syswait((int)a[0]);
+            break;
+        
+        case SYSCALL_USLEEP:
+            return sysusleep((unsigned long)a[0]);
             break;
     }
     return 0;
@@ -434,5 +450,45 @@ int sysclose(int fd)
 }
 
 
+static int sysfork(const struct trap_frame * tfr)
+{
+    // Creates copy of invoking process, creating child that is identical to parent except:
+    // _fork returns child thread ID in parent, _fork returns 0 in child process
+    // Calls process_fork()
+    process_fork(tfr);
+
+    // Allocate new process and copy all iotab pointers from parent to child process
+    // Initialize all reference counts
+    // Calls helper functions
+
+    // thread_fork_to_user
+    //_thread_finish_fork
+    // memory space clone
+
+    return 0;
+}
+
+static int syswait(int tid)
+{
+    // Wait for certain child to exit before returning. If tid is main thread, wait for any child to exit
+
+    // Given code from lecture slides
+
+    trace("%s(%d)", __func__, tid);
+
+    if(tid == 0)
+    {
+        return thread_join_any();
+    }
+    else
+        return thread_join(tid);
+}
+
+static int sysusleep(unsigned long us)
+{
+    // Sleeps for us number of microseconds (read timer.c)
+
+    return 0;
+}
 
 

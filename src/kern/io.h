@@ -192,8 +192,15 @@ static inline uint32_t ioref(struct io_intf * io) {
 }
 
 static inline void ioclose(struct io_intf * io) {
-    if (io->ops->close != NULL)
-        io->ops->close(io);
+    // ioclose decrements refcnt, call close when refcnt == 0
+    io -> refcnt -= 1;
+
+    if (io -> refcnt == 0)
+    {
+        io -> ops -> close(io);     // User helper function instead of raw function pointer to properly respect refcnt
+    }
+    //if (io->ops->close != NULL)
+    //    io->ops->close(io);
 }
 
 static inline long ioread (

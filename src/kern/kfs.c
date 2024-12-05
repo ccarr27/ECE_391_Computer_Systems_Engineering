@@ -175,6 +175,10 @@ int fs_open(const char * name, struct io_intf ** ioptr)
     };
 
     fileArray[spot].io_intf.ops = &newOps;
+
+    // Adding support for refcnt
+    ioref(&fileArray[spot].io_intf);
+
     intSpot = spot;
 
     //Set the value of the double pointer to point to the io_intf for the new file struct entry

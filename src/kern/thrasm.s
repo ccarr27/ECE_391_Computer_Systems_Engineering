@@ -172,7 +172,16 @@ _thread_finish_jump:
         #set sstatus.SIE to status.SPIE
 
 
+        .global _thread_finish_fork
+        .type   _thread_finish_fork, @function
+_thread_finish_fork:
+        # Saves currently running thread
+        # Switches to new child process thread and back to U mode interrupt handler
+        # Restores "saved" trap frame, which is actually duplicated parent trap frame
+        # Set return value correctly (different between child and parent)
+        # sret to jump to new user process
 
+        sret
 
 # Statically allocated stack for the idle thread.
 

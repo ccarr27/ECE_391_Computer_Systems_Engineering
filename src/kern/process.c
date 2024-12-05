@@ -112,7 +112,8 @@ int process_exec(struct io_intf * exeio)
     int loaded = elf_load(exeio, &exe_entry);
     if(loaded < 0)
     {
-        console_printf("Elf load failed return was: %d \n", loaded);
+        //console_printf("Elf load failed return was: %d \n", loaded);
+        
         // panic("elf_load fail");
     }
     //elf_load
@@ -165,4 +166,10 @@ void process_exit(void)
     }
 
     thread_exit();          // Releases associated kernel thread?
+}
+
+
+void process_fork(const struct trap_frame * tfr)
+{
+    // Copies memory space, file descriptor table, calls thread_fork_to_user()
 }

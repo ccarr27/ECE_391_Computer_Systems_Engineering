@@ -318,6 +318,7 @@ int vioblk_open(struct io_intf **ioptr, void *aux)
 
     // Initialize IO interface
     dev->io_intf.ops = &vioblk_ops;
+    ioref(&dev);
 
     *ioptr = &dev->io_intf; // Set ioptr to the io interface
     dev->opened = 1;        // Set opened
