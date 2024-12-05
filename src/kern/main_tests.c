@@ -199,11 +199,11 @@ void main(void) {
     //     buffer[i] = 1;
     // }
 
-    // uint64_t posptr = 0;
+    // uint64_t posptr = 100;
 
     // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
 
-    // blkio->ops->write(blkio, buffer, 512);
+    // blkio->ops->write(blkio, buffer, 312);
 
     // //set postion back to 0 to read from 0
     // posptr = 0;
@@ -214,6 +214,8 @@ void main(void) {
     // blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
 
     // kprintf("pos: %d\n", pos);
+
+
 
     //now we can read
 
