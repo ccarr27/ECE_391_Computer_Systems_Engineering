@@ -543,11 +543,55 @@ long vioblk_write(
             to_write = n - total_written;
         }
 
-        // // If not a full block, read existing data first
-        // if (sector_offset != 0 || to_write != blksz) // Donno what to do here
-        // {
-        //     // Prepare read request to fill blkbuf
-        // }
+        // If not writing a full block, read the existing data into blkbuf first
+        if (sector_offset != 0 || to_write != blksz) {
+            dev->vq.req_header.type = VIRTIO_BLK_T_IN;
+            dev->vq.req_header.sector = sector;
+            dev->vq.req_header.reserved = 0;
+
+            // prepare descriptor table
+            // inderect
+            dev->vq.desc[0].addr = (uint64_t)&dev->vq.desc[1];
+            dev->vq.desc[0].len = sizeof(struct virtq_desc) * 3;
+            dev->vq.desc[0].flags = VIRTQ_DESC_F_INDIRECT;
+            dev->vq.desc[0].next = -1; //technically its own thing
+
+            // header
+            dev->vq.desc[1].addr = (uint64_t)&dev->vq.req_header;
+            dev->vq.desc[1].len = sizeof(struct vioblk_request_header); // not sure about this
+            dev->vq.desc[1].flags = VIRTQ_DESC_F_NEXT;
+            dev->vq.desc[1].next = 1;
+
+            // data
+            //  dev->vq.desc[2].addr = &dev->blkbuf;
+            dev->vq.desc[2].addr = (uint64_t)dev->blkbuf;
+            dev->vq.desc[2].len = dev->blksz;
+            dev->vq.desc[2].flags = VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE;
+            dev->vq.desc[2].next = 2;
+
+            // status
+            dev->vq.desc[3].addr = (uint64_t)&dev->vq.req_status; // status
+            dev->vq.desc[3].len = sizeof(dev->vq.req_status);
+            dev->vq.desc[3].flags = VIRTQ_DESC_F_WRITE;
+            dev->vq.desc[3].next = -1; //nothing next
+
+            dev->vq.avail.ring[0] = 0;
+            __sync_synchronize();
+            dev->vq.avail.idx++;
+            __sync_synchronize();
+
+            dev->regs->queue_notify = 0;
+
+            int intr_num = intr_disable();
+            while (dev->vq.avail.idx != dev->vq.used.idx) {
+                condition_wait(&dev->vq.used_updated);
+            }
+            intr_restore(intr_num);
+
+            if (dev->vq.req_status != VIRTIO_BLK_S_OK) {
+                return -EIO;
+            }
+        }
 
         // Copy data from user buffer to blkbuf
         memcpy(dev->blkbuf + sector_offset, buffer + total_written, to_write);
