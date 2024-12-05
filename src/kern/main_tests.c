@@ -192,28 +192,20 @@ void main(void) {
 
     kprintf("length: %d\n", length);
 
-    // ///////////////////
-    // //write
 
-    // for (int i =0; i <512;i++){
-    //     buffer[i] = 1;
-    // }
 
-    // uint64_t posptr = 100;
+/////////////////////////////////////////////////////////////////////////////////////
+    //read test
 
-    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
+    //set postion back to 0 to read from 0
+    uint64_t posptrr = 0;
 
-    // blkio->ops->write(blkio, buffer, 312);
+    blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptrr);
 
-    // //set postion back to 0 to read from 0
-    // posptr = 0;
+    //check postion to make sure it is zero
+    blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
 
-    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
-
-    // //check postion to make sure it is zero
-    // blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
-
-    // kprintf("pos: %d\n", pos);
+    kprintf("pos: %d\n", pos);
 
 
 
@@ -237,9 +229,57 @@ void main(void) {
 
 
 
+    }
+
+    // ////////////////////////////////////////////////////////////////////
+    //write test
+
+    // for (int i =0; i <512;i++){
+    //     buffer[i] = 1;
+    // }
+
+    // uint64_t posptr = 1124;
+
+    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
+
+    // blkio->ops->write(blkio, buffer, 312);
+
+
+    /////////////////////////////////////////////////////////////////////
+
+    //read test
+
+    //set postion back to 0 to read from 0
+    uint64_t posptrrr = 1024;
+
+    blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptrrr);
+
+    //check postion to make sure it is zero
+    blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
+
+    kprintf("pos: %d\n", pos);
 
 
 
+    //now we can read
+
+    for(int j=0; j<1; j++){
+
+    kprintf("j: %d\n",j);
+
+    blkio->ops->read(blkio, buffer, 512);
+
+    for (int i =0; i <512;i++){
+        kprintf("%x",buffer[i]);
+    }
+    kprintf("\n");
+    (blkio->ops)->ctl(blkio, IOCTL_GETPOS, &pos );
+    kprintf("pos: %d\n", pos);
+
+
+    kprintf("\n\n");
     }
 
 }
+
+
