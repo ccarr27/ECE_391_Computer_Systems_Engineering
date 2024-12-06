@@ -16,7 +16,7 @@ void main(void) {
 
     // ... run trek
 
-    result = _fsopen(1, "init0");
+    result = _fsopen(1, "trek");
 
     if (result < 0) {
         _msgout("_fsopen failed");
