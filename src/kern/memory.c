@@ -276,6 +276,7 @@ void memory_init(void) {
     for(int x = 0; x < page_cnt - NEXT; x++)
     {
         union linked_page * nextPage = (union linked_page *)page + 1;       // For each linked_page, get the address of it and set the next page of the current page to this
+        // console_printf("file:%s line:%d \n", __FILE__,__LINE__);
         page->next = nextPage;
         page = page->next;
     }
@@ -339,6 +340,9 @@ it can be used as a page.
 void *memory_alloc_page(void)
 {
     // Panics if no free pages available
+
+    // console_printf("file:%s line:%d \n", __FILE__,__LINE__);
+
     if(free_list == NULL)
     {
         panic("No free pages available");
@@ -348,6 +352,8 @@ void *memory_alloc_page(void)
     free_list = free_list -> next;      // Move to the next page in the list
 
     memset(newPage,0, PAGE_SIZE);       // Clear data in the page
+
+    sfence_vma();
 
     return (void *) newPage;
 }
@@ -381,9 +387,13 @@ void memory_free_page(void *pp)
     //now get the page as a linked page
     union linked_page* new_free_list_head = (union linked_page*) pp;
 
+    // memset(pp,0, PAGE_SIZE);
+
     //add to the free list
     new_free_list_head->next = free_list;
     free_list = new_free_list_head;
+
+    sfence_vma();
 
 }
 
@@ -429,6 +439,8 @@ void * memory_alloc_and_map_page(uintptr_t vma, uint_fast8_t rwxug_flags)
 
     *pt0_pte = leaf;
 
+    sfence_vma();
+
     return (void *) vma;        // Should be correct return value
 }
 
@@ -458,6 +470,8 @@ void * memory_alloc_and_map_range(uintptr_t vma, size_t size, uint_fast8_t rwxug
     for(int x = 0; x< numPages; x++){
         memory_alloc_and_map_page(vma+ (x * PAGE_SIZE) , rwxug_flags);
     }
+
+    sfence_vma();
 
     return (void *) vma;        // Should be correct return value
 }
@@ -519,6 +533,8 @@ void memory_set_range_flags(const void *vp, size_t size, uint_fast8_t rwxug_flag
     {
         memory_set_page_flags(vp + (x * PAGE_SIZE), rwxug_flags); // Right way to set each PTE's flags?
     }
+
+    sfence_vma();
 }
 
 /*
@@ -550,36 +566,77 @@ void memory_unmap_and_free_user(void)
             continue;   //valid flag was zero so nothing to see here
         }
 
-        // Want to only unmap pages with U flag set
-        if((curr_pt2_entry.flags & PTE_U) == 0)
+        //check if it points to next level
+        if(curr_pt2_entry.flags & PTE_R){
+            continue;   //valid flag was zero so nothing to see here
+        }
+        // console_printf("page:%sline: %d \n", __FILE__,__LINE__);
+
+        if(curr_pt2_entry.flags & PTE_W)
         {
-        continue;
+            continue;
+        }
+        // console_printf("page:%sline: %d \n", __FILE__,__LINE__);
+
+        if(curr_pt2_entry.flags & PTE_X)
+        {
+            continue;
+        }
+
+        if(curr_pt2_entry.flags & PTE_G)
+        {
+            continue;
         }
 
         //at this point it is active/valid
 
 
+
+
         // lets keep looking down the tree
-        struct pte *pt1 = (struct pte*)pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
+        struct pte *pt1 = pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
+
+
 
         //look at every entry in the level 1 pt
         for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
             struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
 
-            //check if it is active
+
             if((curr_pt1_entry.flags & PTE_V) == 0 ){
                 continue;   //valid flag was zero so nothing to see here
             }
 
+
+            //check if it pointing to a next level
+            if(curr_pt1_entry.flags & PTE_R){
+                continue;   //valid flag was zero so nothing to see here
+            }
+
+
             //at this point it is active/valid
             // Want to only unmap pages with U flag set
-               if((curr_pt1_entry.flags & PTE_U) == 0)
-               {
+            if(curr_pt1_entry.flags & PTE_W)
+            {
                 continue;
-               }
+            }
+
+
+            if(curr_pt1_entry.flags & PTE_X)
+            {
+                continue;
+            }
+
+            if(curr_pt1_entry.flags & PTE_G)
+            {
+                continue;
+            }
+
+
+    
 
             // lets keep looking down the tree
-            struct pte *pt0 = (struct pte*)pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
+            struct pte *pt0 = pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
 
             for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
                 struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
@@ -589,6 +646,7 @@ void memory_unmap_and_free_user(void)
                     continue;   //valid flag was zero so nothing to see here
                 }
 
+
                 //at this point it is active/valid
 
                // Want to only unmap pages with U flag set
@@ -597,19 +655,26 @@ void memory_unmap_and_free_user(void)
                 continue;
                }
 
+               curr_pt0_entry.flags &= ~PTE_V;
+
                 //at this point we are looking at a physical an entry pointing to a physical page we want to free
                 void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
-                // console_printf("line: %d \n", __LINE__);
+                // console_printf("file:%s line:%d     // we are freeing a page \n", __FILE__,__LINE__);
                 memory_free_page(pp);       //free physical page
             }
-            memory_free_page(pt0);
-            // console_printf("line: %d \n", __LINE__);
+            // console_printf("file:%s line:%d \n", __FILE__,__LINE__);
+                // memory_free_page(pt0);
+                // console_printf("file:%s line:%d // we are freeing a level 0 page table \n", __FILE__,__LINE__);
+
 
         }
-        memory_free_page(pt1);
+        // memory_free_page(pt1);
+        // console_printf("file:%s line:%d // we are freeing a level 1 page table \n", __FILE__,__LINE__);
+        
+        
         // console_printf("line: %d \n", __LINE__);
     }
-    memory_free_page(pt2);
+    // memory_free_page(pt2);
     // console_printf("line: %d \n", __LINE__);
 
     // Unmaps any page in user range mapped with U flag set and frees underlying physical page 
@@ -623,7 +688,8 @@ void memory_unmap_and_free_user(void)
     // For all entries in given pt1...,
     // For all entries in given pt0...,
     // If associated file has U bit set, unmap and free page
-    // sfence_vma();
+    // console_printf("finish in page: %s line: %d \n", __FILE__,__LINE__);
+    sfence_vma();
     // console_printf("line: %d \n", __LINE__);
 }
 
@@ -657,17 +723,19 @@ void memory_handle_page_fault(const void * vptr)
 
 
 
-    if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA > (uint64_t)vptr))
+    if((USER_START_VMA <= (uint64_t)vptr) && (USER_END_VMA >= (uint64_t)vptr))
     {
         
-    //console_printf("file: %s line: %d. making page for fault at: %x\n",__FILE__, __LINE__, vptr);
+    console_printf("file: %s line: %d. making page for fault at: %x\n",__FILE__, __LINE__, vptr);
     //    memory_alloc_and_map_range((uintptr_t)v_addr, PAGE_SIZE, PTE_W |PTE_R|PTE_U);
        memory_alloc_and_map_page((uintptr_t) v_addr, PTE_W |PTE_R|PTE_U);
+       sfence_vma();
 
     }
     else
     {
         // panic("memory_handle_page_fault");
+        // console_printf("file: %s line: %d.\n",__FILE__, __LINE__);
         process_exit();
     }
     // If in S mode and U = 1 and stats.SUM = 0, page fault
@@ -708,10 +776,6 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 
         root[VPN2(vma)] = ptab_pte(pt1_new, 0);
         
-
-        //set that pte is valid now because there is a table here
-        // root[VPN2(vma)].flags |= PTE_V;
-
     }
     //now the table there is valid
     struct pte * pt1 = pagenum_to_pageptr(root[VPN2(vma)].ppn);
@@ -728,8 +792,6 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
         // pt1[VPN1(vma)].ppn = pt0_new_ppn ;
         pt1[VPN1(vma)] = ptab_pte(pt0_new, 0);
 
-        //that pte is valid now because there is a table here
-        // pt1[VPN1(vma)].flags |= PTE_V;
     }
 
     //now there is for sure a pt0

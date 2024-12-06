@@ -207,13 +207,13 @@ int sysdevopen(int fd, const char * name, int instno)
 {
     if(fd >= 0)
     {
-        struct io_intf ** device = kmalloc(sizeof(struct io_intf));
-        int retVal = device_open(device, name, instno);
+        struct io_intf * device;
+        int retVal = device_open(&device, name, instno);
         if(retVal != 0)
         {
             return -EINVAL;
         }
-        current_process() -> iotab[fd] = *device;
+        current_process() -> iotab[fd] = device;
         return fd;
         // Request specific file descriptor number
     }
@@ -227,13 +227,13 @@ int sysdevopen(int fd, const char * name, int instno)
             }
             x += 1;
         }
-        struct io_intf ** device = kmalloc(sizeof(struct io_intf));
-        int retVal = device_open(device, name, instno);
+        struct io_intf * device;
+        int retVal = device_open(&device, name, instno);
         if(retVal != 0)
         {
             return -EINVAL;
         }
-        current_process() -> iotab[x] = *device;
+        current_process() -> iotab[x] = device;
         return x;
         // Request next availble descriptor number
     }
@@ -325,6 +325,7 @@ static long sysread(int fd, void *buf, size_t bufsz)
     {
         return -EIO;
     }
+    /*
     void * pos = kmalloc(sizeof(uint64_t));
     void * len = kmalloc(sizeof(uint64_t));
     // Checks that we have not gone past the length of the file
@@ -336,6 +337,7 @@ static long sysread(int fd, void *buf, size_t bufsz)
     }
     kfree(pos);
     kfree(len);
+    */
     return val;
 }
 
@@ -367,6 +369,7 @@ static long syswrite(int fd, const void *buf, size_t len)
     {
         return -EIO;
     }
+    /*
      // Checks that we have not gone past the length of the file
     void * pos = kmalloc(sizeof(uint64_t));
     void * size = kmalloc(sizeof(uint64_t));
@@ -378,6 +381,7 @@ static long syswrite(int fd, const void *buf, size_t len)
     }
     kfree(pos);
     kfree(size);
+    */
     return val;
 }
 
