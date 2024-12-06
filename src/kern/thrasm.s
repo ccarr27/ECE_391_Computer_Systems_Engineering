@@ -175,13 +175,30 @@ _thread_finish_jump:
         .global _thread_finish_fork
         .type   _thread_finish_fork, @function
 _thread_finish_fork:
-        # Saves currently running thread
+        # Saves currently running thread -> did in fork to user
         # Switches to new child process thread and back to U mode interrupt handler
         # Restores "saved" trap frame, which is actually duplicated parent trap frame
         # Set return value correctly (different between child and parent)
         # sret to jump to new user process
 
+        # Switch to U mode interrupt handler
+        la      t6, _trap_entry_from_umode
+        csrw    stvec, t6
+
+        # Restore saved trap frame?
+        restore_sstatus_and_sepc
+        restore_gprs_except_t6_and_sp
+
+        # Set return value correctly, 0 for child, tid for parent
+        # Set a0 to ...
+
+        # Need to jump to new user process
         sret
+
+        #sret does:
+        #set pc to sepc
+        #set mode to sstatus.SPP
+        #set sstatus.SIE to status.SPIE
 
 # Statically allocated stack for the idle thread.
 

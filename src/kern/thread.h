@@ -74,7 +74,7 @@ extern void __attribute__ ((noreturn)) thread_jump_to_user (
 
 //SAM added
 
-extern int thread_fork_to_user( struct process * child_proc, const struct trap_frame * parent_tfr);
+extern int thread_fork_to_user(struct process * child_proc, const struct trap_frame * parent_tfr);
 
 
 // Returns a pointer to the process struct of a thread's process, or NULL if the

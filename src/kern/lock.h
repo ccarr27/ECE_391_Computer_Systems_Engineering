@@ -36,6 +36,20 @@ static inline void lock_init(struct lock * lk, const char * name) {
 
 static inline void lock_acquire(struct lock * lk) {
     // TODO: FIXME implement this
+
+    // if lock is unlocked ,change state to locked
+    if(lk -> tid == -1)
+    {
+        lk -> tid = running_thread();
+    }
+    // if lock is locked, suspend until it acquires lock
+    else
+    {
+        condition_wait(&lk -> cond);
+        lk -> tid = running_thread();
+    }
+
+    // Still need to implement locks in kfs/vioblk drivers,look at mp doc
 }
 
 static inline void lock_release(struct lock * lk) {

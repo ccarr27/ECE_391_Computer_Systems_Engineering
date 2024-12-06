@@ -110,9 +110,6 @@ static struct thread_list ready_list;
 // INTERNAL FUNCTION DECLARATIONS
 //
 
-// Sam added
-uintptr_t memory_space_clone(uint_fast16_t asid);
-
 // Finishes initialization of the main thread; must be called in main thread.
 
 static void init_main_thread(void);
@@ -620,18 +617,25 @@ void idle_thread_func(void * arg __attribute__ ((unused))) {
 
 int thread_fork_to_user( struct process * child_proc, const struct trap_frame * parent_tfr)
 {
-    // copy memory space
-    //memory_space_clone() 
+    //new_proc.tid = running_thread();    //Feel like this will be wrong
 
     // eventually calls thread_fork_finish in thrasm.s
 
     // Sets up child thread
 
     //_thread_fork_finish()
-    return 0;
-}
 
-uintptr_t memory_space_clone(uint_fast16_t asid)
-{
-    // clone memory space for current process, return new m tag
+    // Sets up another thread struct
+    // Initializes stack anchor to reclaim tp when coming back from interrupt
+    // Switch into child's memory space
+    // Set thread to be run     -> Do in thread finish fork
+
+    int new_tid = thread_spawn(NULL, parent_tfr -> x[2], NULL);
+    child_proc -> tid = new_tid;
+    struct thread * parent_thread = _thread_swtch(thrtab[new_tid]);
+    
+    _thread_fork_finish(thrtab[new_tid], parent_tfr);
+    
+    // fork finish (thread * child, struct trap_frame)
+    return 0;
 }

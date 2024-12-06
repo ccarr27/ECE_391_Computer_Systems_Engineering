@@ -179,4 +179,50 @@ void process_exit(void)
 void process_fork(const struct trap_frame * tfr)
 {
     // Copies memory space, file descriptor table, calls thread_fork_to_user()
+    
+    // Copy all io tab pointers
+    
+    //struct io_intf * iotab[PROCESS_IOMAX];
+
+    struct process new_proc;
+
+    int keep_going = 0;
+    for(int x = 0; x < PROCESS_IOMAX; x++)
+    {
+        if(proctab[x] == NULL && keep_going == 0)
+        {
+            proctab[x] = &new_proc;
+            new_proc.id = x;
+            keep_going = 1;
+        }
+    }
+
+    /*
+    main_proc.tid = running_thread();       // Assign thread ID
+
+    main_proc.mtag = active_memory_space();     // Set mtag from memory function
+
+    thread_set_process(main_proc.tid, &main_proc);      // Creates process 0 around main thread and address space
+    */
+
+    // Will assign new_proc.tid in thread fork to user
+    for(int x = 0; x < PROCESS_IOMAX; x++)
+    {
+        new_proc.iotab[x] = current_process() -> iotab[x];
+        
+        if(new_proc.iotab[x] != NULL)
+        {
+            new_proc.iotab[x] -> refcnt += 1;
+        }
+    }
+    new_proc.mtag = memory_space_clone(0);
+    
+    _thread_fork_to_user(new_proc, tfr);
+
+    // Don't need to memcpy data inside global pages
+    // Usually leaves only user page data to be copied
+    // Alloc physical page from kernel range as backinh physical page for new clone
+
+
+
 }
