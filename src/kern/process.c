@@ -100,7 +100,7 @@ int process_exec(struct io_intf * exeio)
 {
    
 // 1. Any virtual memory mappings belonging to other user processes should be unmapped
-    //memory_unmap_and_free_user();        //NEED IT EVENTUALLY
+    memory_unmap_and_free_user();        //NEED IT EVENTUALLY
 
 // Not for CP2, but may later need to create new root table and initalize with default mapping for a user process
 
@@ -112,8 +112,7 @@ int process_exec(struct io_intf * exeio)
     int loaded = elf_load(exeio, &exe_entry);
     if(loaded < 0)
     {
-        //console_printf("Elf load failed return was: %d \n", loaded);
-        
+        console_printf("Elf load failed return was: %d \n", loaded);
         // panic("elf_load fail");
     }
     //elf_load
@@ -128,10 +127,13 @@ int process_exec(struct io_intf * exeio)
     
     //console_printf("we get past elf load\n");
 
+    console_printf("file: %s line:%d \n", __FILE__, __LINE__);
+
     int interrupt = intr_disable();
     
     thread_jump_to_user(USER_STACK_VMA, (uintptr_t) exe_entry); //USP, UPC will have to change -> Should now be okay
     intr_restore(interrupt);
+    console_printf("file: %s line:%d \n", __FILE__, __LINE__);
     return 0;
 }
 
@@ -156,14 +158,19 @@ void process_exit(void)
 
     memory_space_reclaim(); // Releases process memory space
 
+    // console_printf("file: %s line:%d \n", __FILE__, __LINE__);
+
     for(int x = 0; x < 16; x++)
     {
+        if(curr -> iotab[x] != NULL)
+        {
         if(curr -> iotab[x] -> ops != NULL)
         {
         ioclose(curr -> iotab[x]);      // Close all open IO interfaces
         }
-        
+        }
     }
+    // console_printf("file: %s line:%d \n", __FILE__, __LINE__);
 
     thread_exit();          // Releases associated kernel thread?
 }
