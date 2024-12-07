@@ -10,6 +10,7 @@
 #include "error.h"
 #include "string.h"
 #include "thread.h"
+#include "lock.h"
 
 //            COMPILE-TIME PARAMETERS
 //           
@@ -72,6 +73,7 @@ struct vioblk_device
     uint16_t irqno;
     int8_t opened;
     int8_t readonly;
+    
 
     //            optimal block size
     uint32_t blksz;
@@ -173,6 +175,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     struct vioblk_device *dev;
     uint_fast32_t blksz;
     int result;
+    struct lock * vio_lock;
 
     assert(regs->device_id == VIRTIO_ID_BLOCK);
 
@@ -219,6 +222,12 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
         blksz = 512;
 
     debug("%p: virtio block device block size is %lu", regs, (long)blksz);
+
+    // Allocate memory for lock, initialize fields with lock_init
+    vio_lock = kmalloc(sizeof(struct lock)); 
+    memset(vio_lock, 0, sizeof(struct lock));
+    lock_init(vio_lock, "blk");
+    
 
     // Allocate initialize device struct
 
@@ -339,7 +348,7 @@ Output:void so return nothing
 void vioblk_close(struct io_intf *io)
 {
     //            FIXME your code here
-    struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
+    struct vioblk_device * dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
     dev->io_intf.ops = NULL;
     dev->opened = 0;
     virtio_reset_virtq(dev->regs, 0);//id is 0

@@ -4,6 +4,7 @@
 #include "virtio.h"
 #include "console.h"
 #include "fs.h"
+#include "lock.h"
 
 // Disk layout:
 // [ boot block | inodes | data blocks ]
@@ -65,6 +66,7 @@ file_desc_t fileArray[32];
 uint64_t intSpot;
 
 struct io_intf * globalIO;
+struct lock * kfs_lock;
 
 void fs_close(struct io_intf* io);
 long fs_write(struct io_intf* io, const void* buf, unsigned long n);
@@ -84,6 +86,11 @@ Output: int that usually if success equals 0
 
 int fs_mount(struct io_intf * blkio)
 {
+    // create lock, zero out memory
+    kfs_lock = kmalloc(sizeof(struct lock)); 
+    memset(kfs_lock, 0, sizeof(struct lock));
+    lock_init(kfs_lock, "kfs");
+
     for(int x = 0; x < 32; x++)
     {
         memset(&fileArray[x], 0, sizeof(file_desc_t));
@@ -216,6 +223,9 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
     // Use walk
     // root table stored in satp
     
+    // acquire lock for read operation
+    lock_acquire(kfs_lock);
+
     struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
    
@@ -287,6 +297,10 @@ long fs_read(struct io_intf* io, void * buf, unsigned long n)
         // After finish read, update filePos
     }
     buf -= count;
+
+    // release lock for read operation
+    lock_release(kfs_lock);
+
     //read directly from buffer
     return count;
 }
@@ -300,7 +314,10 @@ Output: long that usually if success equals 0
 
 long fs_write(struct io_intf* io, const void* buf, unsigned long n)
 {
-       struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
+    // acquire lock for write operation
+    lock_acquire(kfs_lock);
+
+    struct file_desc_t * fd = (void*)io - offsetof(struct file_desc_t, io_intf); // Should be current fd, maybe address of io?
     // Get the total number of innodes from the boot block
    
     ioseek(globalIO, blockNumSize);
@@ -371,6 +388,10 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n)
         // After finish read, update filePos
     }
     buf -= count;
+
+    // release lock for write operation
+    lock_release(kfs_lock);
+    
     //read directly from buffer
     return count;
     

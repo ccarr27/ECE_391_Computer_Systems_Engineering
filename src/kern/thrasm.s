@@ -174,7 +174,8 @@ _thread_finish_jump:
 
         .global _thread_finish_fork
         .type   _thread_finish_fork, @function
-_thread_finish_fork:
+
+_thread_fork_finish:
         # Saves currently running thread -> did in fork to user
         # Switches to new child process thread and back to U mode interrupt handler
         # Restores "saved" trap frame, which is actually duplicated parent trap frame
