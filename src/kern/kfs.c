@@ -465,6 +465,7 @@ Output: 0 if successful
 
 int fs_setpos(file_desc_t* fd, void * arg)
 {
+    //may need to lock here
     size_t new_pos = *(size_t *)arg;
         if (new_pos > fd->file_size) {
             return -EIO; // Out of bounds, return error

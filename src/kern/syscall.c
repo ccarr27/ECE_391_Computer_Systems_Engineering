@@ -101,7 +101,8 @@ int64_t syscall(struct trap_frame * tfr)
             break;
 
         case SYSCALL_FORK:
-            return sysfork((const struct trap_frame *)a[0]);
+            // return sysfork((const struct trap_frame *)a[0]); //we think we pass in trap frame instead
+            return sysfork((const struct trap_frame *) tfr);
             break;
 
         case SYSCALL_WAIT:
@@ -468,6 +469,7 @@ static int sysfork(const struct trap_frame * tfr)
     //_thread_finish_fork
     // memory space clone
 
+    //this return should returns child thread ID in parent or returns 0 in child process
     return 0;
 }
 

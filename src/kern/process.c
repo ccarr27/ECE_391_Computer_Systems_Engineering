@@ -184,6 +184,11 @@ void process_fork(const struct trap_frame * tfr)
     
     //struct io_intf * iotab[PROCESS_IOMAX];
 
+    // //copy memory space and switch to it
+    // uintptr_t mtag = memory_space_clone(0);
+    // uintptr_t mtag_old = memory_space_switch(mtag);
+
+
     struct process new_proc;
 
     int keep_going = 0;

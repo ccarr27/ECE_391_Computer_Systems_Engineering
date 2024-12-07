@@ -815,132 +815,109 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
     // asid currently not used (set to 0)
 
 
-    struct pte* pt2 = active_space_root();
+    struct pte* pt2_old = active_space_root();
 
     // Need to make new pt2 with new root
     struct pte * pt2_new = (struct pte *)memory_alloc_page();
-    // Copy data from old root table to new root table
-    memcpy(pt2_new, pt2, PAGE_SIZE);
-    // Need to get new mtag somehow
-
-    // Going through old root table, finding all pt1 entries
 
     for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
-
         //get the current pt1 entry
-        struct pte curr_pt2_entry = pt2[vpn2];
+        struct pte old_pt2_entry = pt2_old[vpn2];
+        struct pte new_pt2_entry = pt2_new[vpn2];
 
         //check if it is active
-        if((curr_pt2_entry.flags & PTE_V) == 0 ){
+        if((old_pt2_entry.flags & PTE_V) == 0 ){
             continue;   //valid flag was zero so nothing to see here
         }
 
+        if(old_pt2_entry.flags & PTE_G){
+            //global so shallow copy
+            new_pt2_entry = old_pt2_entry;
+            continue;
+        }
+
+        //if r w g flags are all 0 then there is 
         //check if it points to next level
-        if(curr_pt2_entry.flags & PTE_R){
-            continue;   //valid flag was zero so nothing to see here
-        }
-        // console_printf("page:%sline: %d \n", __FILE__,__LINE__);
-
-        if(curr_pt2_entry.flags & PTE_W)
-        {
-            continue;
-        }
-        // console_printf("page:%sline: %d \n", __FILE__,__LINE__);
-
-        if(curr_pt2_entry.flags & PTE_X)
-        {
-            continue;
+        if(old_pt2_entry.flags & (PTE_R | PTE_W | PTE_X)){
+            continue;   //one was not zero
         }
 
-        if(curr_pt2_entry.flags & PTE_G)
-        {
-            continue;
-        }
+        //set the pt2_new_pte to point to the pt1_new
+        //level 1 user table here so we deep copy
+        struct pte * pt1_new = (struct pte *)memory_alloc_page();
+        new_pt2_entry = ptab_pte(pt1_new, old_pt2_entry.flags);
 
-        //at this point it is active/valid
 
-        // lets keep looking down the tree
-        struct pte *pt1 = pagenum_to_pageptr(curr_pt2_entry.ppn);  //pointer to level 1 pt
+        //get the old pt1 table
+        struct pte *pt1_old = pagenum_to_pageptr(old_pt2_entry.ppn);
 
-        //look at every entry in the level 1 pt
         for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
-            struct pte curr_pt1_entry = pt1[vpn1];      //curr pt1 entry
+            struct pte old_pt1_entry = pt1_old[vpn1];      //old pt1 entry
+            struct pte new_pt1_entry = pt1_new[vpn1];      //curr pt1 entry
 
-            if((curr_pt1_entry.flags & PTE_V) == 0 ){
+            if((old_pt1_entry.flags & PTE_V) == 0 ){
                 continue;   //valid flag was zero so nothing to see here
             }
 
-            //check if it pointing to a next level
-            if(curr_pt1_entry.flags & PTE_R){
-                continue;   //valid flag was zero so nothing to see here
-            }
+            //if global
 
-            //at this point it is active/valid
-            // Want to only unmap pages with U flag set
-            if(curr_pt1_entry.flags & PTE_W)
-            {
+            if(old_pt1_entry.flags & PTE_G){
+                //global so shallow copy
+                new_pt1_entry = old_pt1_entry;
                 continue;
             }
 
-            if(curr_pt1_entry.flags & PTE_X)
-            {
-                continue;
+
+            //if r w g flags are all 0 then there is 
+            //check if it points to next level
+            if(old_pt1_entry.flags & (PTE_R | PTE_W | PTE_X)){
+                continue;   //one was not zero
             }
-            if(curr_pt1_entry.flags & PTE_G)
-            {
-                continue;
-            }
-            // lets keep looking down the tree
-            struct pte *pt0 = pagenum_to_pageptr(curr_pt1_entry.ppn);      //pointer to level 0 pt
+
+            struct pte * pt0_new = (struct pte *)memory_alloc_page();
+            new_pt1_entry = ptab_pte(pt0_new, old_pt1_entry.flags);
+
+
+            //get the old pt0 table
+            struct pte *pt0_old = pagenum_to_pageptr(old_pt1_entry.ppn);
+
             for(int vpn0 = 0; vpn0 < PTE_CNT; vpn0++){
-                struct pte curr_pt0_entry = pt0[vpn0];      //curr pt0 entry
+                //now we deep copy the physical pages that exist
+
+                struct pte old_pt0_entry = pt0_old[vpn0];      //curr pt0 entry
+                struct pte new_pt0_entry = pt0_new[vpn0];      //curr pt0 entry
                 //check if it is active
-                if((curr_pt0_entry.flags & PTE_V) == 0 ){
+                if((old_pt0_entry.flags & PTE_V) == 0 ){
                     continue;   //valid flag was zero so nothing to see here
                 }
-                //at this point it is active/valid
-               // Want to only unmap pages with U flag set
-               if((curr_pt0_entry.flags & PTE_U) == 0)
-               {
-                continue;
-               }
-               //curr_pt0_entry.flags &= ~PTE_V;
 
-                //at this point we are looking at a physical an entry pointing to a physical page we want to free
-                
-                void *pp = pagenum_to_pageptr(curr_pt0_entry.ppn);
+                if(old_pt0_entry.flags & PTE_G){
+                    //global so shallow copy
+                    new_pt0_entry = old_pt0_entry;
+                    continue;
+                }
 
-                // console_printf("file:%s line:%d     // we are freeing a page \n", __FILE__,__LINE__);
-                
-                //memory_free_page(pp);       //free physical page
-                void * newPP = memory_alloc_page();
+                // Want to only unmap pages with U flag set
+                if((old_pt0_entry.flags & PTE_U) == 0)
+                {
+                    continue;
+                }
 
-                /*
-                    struct pte * pt0 = pagenum_to_pageptr(pt1[VPN1(vma)].ppn);
-                    //may need to check if what is at pt0 is valid
-                    return &pt0[VPN0(vma)];
-                */
+                //at this point we do a deep copy of the physical page
+                void* pp = (void *)memory_alloc_page();
+                new_pt0_entry = leaf_pte(pp, old_pt0_entry.flags);
 
-                struct pte* new_pt0_pte = walk_pt(pt2_new, curr_pt0_entry.ppn, 1);  // Not sure if using ppn here is okay for the vma to walk down to
-
-                struct pte leaf = leaf_pte(newPP, curr_pt0_entry.flags);
-
-                *new_pt0_pte = leaf;
-
-                memcpy(new_pt0_pte, &curr_pt0_entry, PAGE_SIZE);    // Unsure
-                // May also need to memcpy with page tables in walk?
-
+                //then copy the information at the page
+                memcpy(pp,pagenum_to_pageptr(old_pt0_entry.ppn),PAGE_SIZE);
                 sfence_vma();
+
             }
+
         }
 
     }
     sfence_vma();
-    /*
-    static inline struct pte * mtag_to_root(uintptr_t mtag) {           //gives the address of the first entry already since ((<<20)>>20)<<12 is just (<<20)>>8
-    return (struct pte *)((mtag << 20) >> 8);
-    */
-    return (uintptr_t) (((uintptr_t)pt2_new >> 20) << 8);   // Prob wrong
+    return (((((uintptr_t)pt2_new)<<20) >>20)) | ((uintptr_t)8 << 60);
 }
 
 
