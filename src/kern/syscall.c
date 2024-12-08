@@ -5,6 +5,7 @@
 #include "halt.h"
 #include "heap.h"
 #include "csr.h"
+#include "timer.h"
 
 #include "string.h"
 #include "error.h"
@@ -459,7 +460,7 @@ static int sysfork(const struct trap_frame * tfr)
     // Creates copy of invoking process, creating child that is identical to parent except:
     // _fork returns child thread ID in parent, _fork returns 0 in child process
     // Calls process_fork()
-    process_fork(tfr);
+    
 
     // Allocate new process and copy all iotab pointers from parent to child process
     // Initialize all reference counts
@@ -470,7 +471,7 @@ static int sysfork(const struct trap_frame * tfr)
     // memory space clone
 
     //this return should returns child thread ID in parent or returns 0 in child process
-    return 0;
+    return process_fork(tfr);
 }
 
 static int syswait(int tid)
@@ -492,6 +493,10 @@ static int syswait(int tid)
 static int sysusleep(unsigned long us)
 {
     // Sleeps for us number of microseconds (read timer.c)
+    struct alarm *al = kmalloc(sizeof(struct alarm));
+    alarm_init(al, "alarm");
+    alarm_sleep_us(al, us);
+    kfree(al);
 
     return 0;
 }

@@ -7,6 +7,8 @@
 #include "elf.h"
 #include "intr.h"
 #include "csr.h"
+// #include "syscall.h"
+
 
 
 
@@ -176,7 +178,7 @@ void process_exit(void)
 }
 
 
-void process_fork(const struct trap_frame * tfr)
+int process_fork(const struct trap_frame * tfr)
 {
     // Copies memory space, file descriptor table, calls thread_fork_to_user()
     
@@ -226,4 +228,5 @@ void process_fork(const struct trap_frame * tfr)
     // Don't need to memcpy data inside global pages
     // Usually leaves only user page data to be copied
     // Alloc physical page from kernel range as backinh physical page for new clone
+    return y;
 }

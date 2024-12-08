@@ -15,6 +15,8 @@
 #include "process.h"
 #include "memory.h"
 
+
+
 // COMPILE-TIME PARAMETERS
 //
 
@@ -471,13 +473,14 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
 
     uintptr_t parent_mtag =  memory_space_switch(child_proc->mtag);
 
-    struct thread * parent_thread = _thread_swtch(thrtab[tid]);
+    // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
     intr_disable();
     
     _thread_finish_fork(thrtab[tid], parent_tfr);
+
     
     // fork finish (thread * child, struct trap_frame)
-    return 0;
+    return tid;
 }
 
 // INTERNAL FUNCTION DEFINITIONS

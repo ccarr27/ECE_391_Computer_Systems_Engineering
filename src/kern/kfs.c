@@ -206,6 +206,7 @@ void fs_close(struct io_intf* io)
     io -> ops = NULL;
     fileArray[intSpot].flags = 0;
     kfree(io);  // Free the memory associated with the io_intf for the file struct and mark the file as closed
+    kfree(kfs_lock);
 }
 
 /*

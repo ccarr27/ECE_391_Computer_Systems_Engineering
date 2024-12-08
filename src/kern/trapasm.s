@@ -207,7 +207,7 @@ _trap_entry_from_umode:
 
         csrw   sscratch, sp    
 
-        addi    sp, sp, -34*8   # allocates room for trap frame
+        addi    sp, sp, -34*8   # deallocates room for trap frame
 
         ld      t6, 31*8(sp)
         ld      sp, 2*8(sp)   

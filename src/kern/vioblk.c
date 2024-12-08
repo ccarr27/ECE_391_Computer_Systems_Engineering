@@ -49,6 +49,8 @@ struct vioblk_request_header
     uint64_t sector;
 };
 
+struct lock * vio_lock;
+
 //            Request type (for vioblk_request_header)
 
 #define VIRTIO_BLK_T_IN 0
@@ -175,7 +177,6 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     struct vioblk_device *dev;
     uint_fast32_t blksz;
     int result;
-    struct lock * vio_lock;
 
     assert(regs->device_id == VIRTIO_ID_BLOCK);
 
@@ -224,11 +225,9 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     debug("%p: virtio block device block size is %lu", regs, (long)blksz);
 
     // Allocate memory for lock, initialize fields with lock_init
-    /*
     vio_lock = kmalloc(sizeof(struct lock)); 
     memset(vio_lock, 0, sizeof(struct lock));
     lock_init(vio_lock, "blk");
-    */
 
     // Allocate initialize device struct
 
@@ -354,6 +353,7 @@ void vioblk_close(struct io_intf *io)
     dev->opened = 0;
     virtio_reset_virtq(dev->regs, 0);//id is 0
     intr_disable_irq(dev->irqno); //disable interrupts
+    kfree(vio_lock);
 }
 
 /*
@@ -370,6 +370,7 @@ long vioblk_read(
 {
     //            FIXME your code here
     //check inputs:
+    lock_acquire(vio_lock);
     if(bufsz == 0){
         return 0;  //bufsz was zero so we read 0
     }
@@ -494,6 +495,7 @@ long vioblk_read(
         total_read += to_read;
     }
     // kprintf("read op num %d \n", total_read);
+    lock_release(vio_lock);
 
     return (unsigned long)total_read;
 }
@@ -511,6 +513,8 @@ long vioblk_write(
 {
     
     //            FIXME your code here
+    lock_acquire(vio_lock);
+
     struct vioblk_device *dev = (struct vioblk_device *)((char *)io - offsetof(struct vioblk_device, io_intf));
     //make sure the dev is good
     if(dev->opened == 0){
@@ -668,6 +672,8 @@ long vioblk_write(
         dev->pos += to_write;
         total_written += to_write;
     }
+    lock_release(vio_lock);
+
     return (long)total_written;
 }
 
@@ -770,12 +776,14 @@ int vioblk_getpos(const struct vioblk_device *dev, uint64_t *posptr)
 int vioblk_setpos(struct vioblk_device *dev, const uint64_t *posptr)
 {
     //            FIXME your code here
+    lock_acquire(vio_lock);
     if (!posptr || *posptr > dev->size)
     {
         return -EINVAL;
     }
     // Sets position
     dev->pos = *posptr;
+    lock_release(vio_lock);
     return 0;
 }
 /*

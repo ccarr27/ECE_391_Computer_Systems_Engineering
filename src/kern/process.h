@@ -11,6 +11,7 @@
 #include "config.h"
 #include "io.h"
 #include "thread.h"
+#include "timer.h"
 #include <stdint.h>
 
 // EXPORTED TYPE DEFINITIONS
@@ -36,7 +37,7 @@ extern void procmgr_init(void);
 extern int process_exec(struct io_intf * exeio);
 
 // Sam added
-extern void process_fork(const struct trap_frame * tfr);
+extern int process_fork(const struct trap_frame * tfr);
 
 extern void __attribute__ ((noreturn)) process_exit(void);
 
