@@ -897,7 +897,7 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
                     continue;
                 }
 
-                // Want to only unmap pages with U flag set
+                // Want to only copy pages with U flag set
                 if((old_pt0_entry.flags & PTE_U) == 0)
                 {
                     continue;
@@ -916,8 +916,13 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
         }
 
     }
+
+    uintptr_t new_mtag =  // Sv39
+        ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) |
+        pageptr_to_pagenum(pt2_new);
+
     sfence_vma();
-    return (((((uintptr_t)pt2_new)<<20) >>20)) | ((uintptr_t)8 << 60);
+    return new_mtag;
 }
 
 

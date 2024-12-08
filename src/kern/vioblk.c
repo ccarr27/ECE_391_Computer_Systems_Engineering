@@ -224,10 +224,11 @@ void vioblk_attach(volatile struct virtio_mmio_regs *regs, int irqno)
     debug("%p: virtio block device block size is %lu", regs, (long)blksz);
 
     // Allocate memory for lock, initialize fields with lock_init
+    /*
     vio_lock = kmalloc(sizeof(struct lock)); 
     memset(vio_lock, 0, sizeof(struct lock));
     lock_init(vio_lock, "blk");
-    
+    */
 
     // Allocate initialize device struct
 

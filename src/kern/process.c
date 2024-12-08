@@ -191,14 +191,13 @@ void process_fork(const struct trap_frame * tfr)
 
     struct process new_proc;
 
-    int keep_going = 0;
-    for(int x = 0; x < PROCESS_IOMAX; x++)
+    for(int x = 0; x < NPROC; x++)
     {
-        if(proctab[x] == NULL && keep_going == 0)
+        if(!proctab[x])
         {
             proctab[x] = &new_proc;
             new_proc.id = x;
-            keep_going = 1;
+            break;
         }
     }
 
@@ -215,19 +214,16 @@ void process_fork(const struct trap_frame * tfr)
     {
         new_proc.iotab[x] = current_process() -> iotab[x];
         
-        if(new_proc.iotab[x] != NULL)
+        if(!new_proc.iotab[x])
         {
             new_proc.iotab[x] -> refcnt += 1;
         }
     }
     new_proc.mtag = memory_space_clone(0);
     
-    _thread_fork_to_user(new_proc, tfr);
+    int y = thread_fork_to_user(&new_proc, tfr);
 
     // Don't need to memcpy data inside global pages
     // Usually leaves only user page data to be copied
     // Alloc physical page from kernel range as backinh physical page for new clone
-
-
-
 }

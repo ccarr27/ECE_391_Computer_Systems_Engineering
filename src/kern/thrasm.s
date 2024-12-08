@@ -143,6 +143,7 @@ _thread_finish_jump:
         # a1    usp
         # a2    upc
 
+
         csrw    sscratch, a0 
 
         la      t6, _trap_entry_from_umode
@@ -175,25 +176,56 @@ _thread_finish_jump:
         .global _thread_finish_fork
         .type   _thread_finish_fork, @function
 
-_thread_fork_finish:
+_thread_finish_fork:
         # Saves currently running thread -> did in fork to user
         # Switches to new child process thread and back to U mode interrupt handler
         # Restores "saved" trap frame, which is actually duplicated parent trap frame
         # Set return value correctly (different between child and parent)
         # sret to jump to new user process
 
+
+
+
+
+
+        # addi sp, sstore_sstatus_and_sepcp -8
+
+        # sd      a0, 0(sp)
+
+        # call _thread_swtch
+
+        # ld  t0, 0(sp)
+
+        # addi sp,sp, 8
+
+        #parent thread id - a0
+        #parent trap frame - a1
+        #child thread id - t0
+
         # Switch to U mode interrupt handler
         la      t6, _trap_entry_from_umode
         csrw    stvec, t6
 
         # Restore saved trap frame?
-        restore_sstatus_and_sepc
-        restore_gprs_except_t6_and_sp
+
+        mv t6, sp
+        mv sp, a1
+
+        #restore_sstatus_and_sepc
+        #restore_gprs_except_t6_and_sp
 
         # Set return value correctly, 0 for child, tid for parent
         # Set a0 to ...
 
+        # Save current thread's context and trap frame, switches to umode, and returns (child srets to umode in tff)
+        # a0 = tid ?
+
         # Need to jump to new user process
+
+        #set spie to 1
+        li      t0, (1<<5)
+        csrs    sstatus, t0
+
         sret
 
         #sret does:
