@@ -9,7 +9,11 @@
 #define DEBUG
 #endif
 
-#define INIT_PROC "init_fib_fib" // name of init process executable
+// name of init process executable
+// #define INIT_PROC "fib" 
+// #define INIT_PROC "init_trek_rule30"
+#define INIT_PROC "fib"
+// #define INIT_PROC "init_fib_rule30"
 
 #include "console.h"
 #include "thread.h"

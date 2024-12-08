@@ -3,7 +3,7 @@
 
 void main(void) {
     int result;
-
+    
     _fork();
     
     result = _fsopen(0, "fib");

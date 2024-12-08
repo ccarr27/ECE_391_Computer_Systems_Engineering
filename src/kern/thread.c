@@ -471,7 +471,9 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
 
     child_proc -> tid = tid;
 
-    uintptr_t parent_mtag =  memory_space_switch(child_proc->mtag);
+    // TODO: MOVE THIS INSIDE OF THREAD_FINISH_FORK INSTEAD
+    console_printf("parent mtag: %llu, child_proc mtag: %llu", csrr_satp(), child_proc->mtag);
+    uintptr_t parent_mtag = memory_space_switch(child_proc->mtag);
 
     // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
     intr_disable();

@@ -186,11 +186,8 @@ int process_fork(const struct trap_frame * tfr)
     
     //struct io_intf * iotab[PROCESS_IOMAX];
 
-    // //copy memory space and switch to it
-    // uintptr_t mtag = memory_space_clone(0);
-    // uintptr_t mtag_old = memory_space_switch(mtag);
 
-
+    //get the process id
     struct process new_proc;
 
     for(int x = 0; x < NPROC; x++)
@@ -216,12 +213,14 @@ int process_fork(const struct trap_frame * tfr)
     {
         new_proc.iotab[x] = current_process() -> iotab[x];
         
-        if(!new_proc.iotab[x])
+        if(new_proc.iotab[x] != NULL)
         {
             new_proc.iotab[x] -> refcnt += 1;
         }
     }
+
     new_proc.mtag = memory_space_clone(0);
+    console_printf("parent mtag: %llx, child_proc mtag: %llx", csrr_satp(), new_proc.mtag);    
     
     int y = thread_fork_to_user(&new_proc, tfr);
 

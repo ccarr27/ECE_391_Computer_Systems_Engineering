@@ -237,10 +237,14 @@ _thread_finish_fork:
         # sret to jump to new user process
 
         # struct trap_frame {
-        #               uint64_t x[32]; // x[0] used to save tp when in U mode
-        #               uint64_t sstatus;
-        #               uint64_t sepc;
-        #           };  
+        # uint64_t x[32]; // x[0] used to save tp when in U mode
+        # uint64_t sstatus;
+        # uint64_t sepc;
+        # };
+
+        # static inline uintptr_t memory_space_switch(uintptr_t mtag) {
+        #         return csrrw_satp(mtag);
+        # }  
 
         #_thread_finish_fork(thrtab[tid], parent_tfr);
 
@@ -250,7 +254,7 @@ _thread_finish_fork:
 
         #save saves currently running thread
         # mv t1,tp
-
+        
         #switch to new child process thread
         call _thread_swtch      #a0 already holds child thread ID
 
