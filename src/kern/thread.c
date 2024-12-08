@@ -412,78 +412,6 @@ void condition_broadcast(struct condition * cond) {
 
 // Sam added
 
-int thread_fork_to_user(struct process * child_proc, const struct trap_frame * parent_tfr){
-    //new_proc.tid = running_thread();    //Feel like this will be wrong
-
-    // eventually calls thread_fork_finish in thrasm.s
-
-    // Sets up child thread
-
-    //_thread_fork_finish()
-
-    // Sets up another thread struct
-    // Initializes stack anchor to reclaim tp when coming back from interrupt
-    // Switch into child's memory space
-    // Set thread to be run     -> Do in thread finish fork
-
-    // from thread_spawn
-
-    struct thread_stack_anchor * stack_anchor;
-    void * stack_page;
-    struct thread * child;
-    int saved_intr_state;
-    int tid;
-
-    trace("%s(name=\"%s\") in %s", __func__, name, CURTHR->name);
-
-    // Find a free thread slot.
-
-    tid = 0;
-    while (++tid < NTHR)
-        if (thrtab[tid] == NULL)
-            break;
-    
-    if (tid == NTHR)
-        panic("Too many threads");
-    
-    // Allocate a struct thread and a stack
-
-    child = kmalloc(sizeof(struct thread));
-
-    stack_page = memory_alloc_page();
-    stack_anchor = stack_page + PAGE_SIZE;
-    stack_anchor -= 1;
-    stack_anchor->thread = child;
-    stack_anchor->reserved = 0;
-
-
-    thrtab[tid] = child;
-
-    child->id = tid;
-    //child->name = name;
-    child->parent = CURTHR;
-    child->proc = CURTHR->proc;
-    child->stack_base = stack_anchor;
-    child->stack_size = child->stack_base - stack_page;
-    
-    
-    //int new_tid = thread_spawn(NULL, parent_tfr -> x[2], NULL);
-
-    child_proc -> tid = tid;
-
-    // TODO: MOVE THIS INSIDE OF THREAD_FINISH_FORK INSTEAD
-    console_printf("parent mtag: %llu, child_proc mtag: %llu", csrr_satp(), child_proc->mtag);
-    uintptr_t parent_mtag = memory_space_switch(child_proc->mtag);
-
-    // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
-    intr_disable();
-    
-    _thread_finish_fork(thrtab[tid], parent_tfr);
-
-    
-    // fork finish (thread * child, struct trap_frame)
-    return tid;
-}
 
 // INTERNAL FUNCTION DEFINITIONS
 //
@@ -690,3 +618,76 @@ void idle_thread_func(void * arg __attribute__ ((unused))) {
     }
 }
 
+
+int thread_fork_to_user(struct process * child_proc, const struct trap_frame * parent_tfr){
+    //new_proc.tid = running_thread();    //Feel like this will be wrong
+
+    // eventually calls thread_fork_finish in thrasm.s
+
+    // Sets up child thread
+
+    //_thread_fork_finish()
+
+    // Sets up another thread struct
+    // Initializes stack anchor to reclaim tp when coming back from interrupt
+    // Switch into child's memory space
+    // Set thread to be run     -> Do in thread finish fork
+
+    // from thread_spawn
+
+    struct thread_stack_anchor * stack_anchor;
+    void * stack_page;
+    struct thread * child;
+    int saved_intr_state;
+    int tid;
+
+    trace("%s(name=\"%s\") in %s", __func__, name, CURTHR->name);
+
+    // Find a free thread slot.
+
+    tid = 0;
+    while (++tid < NTHR)
+        if (thrtab[tid] == NULL)
+            break;
+    
+    if (tid == NTHR)
+        panic("Too many threads");
+    
+    // Allocate a struct thread and a stack
+
+    child = kmalloc(sizeof(struct thread));
+
+    stack_page = memory_alloc_page();
+    stack_anchor = stack_page + PAGE_SIZE;
+    stack_anchor -= 1;
+    stack_anchor->thread = child;
+    stack_anchor->reserved = 0;
+
+
+    thrtab[tid] = child;
+
+    child->id = tid;
+    //child->name = name;
+    child->parent = CURTHR;
+    child->proc = CURTHR->proc;
+    child->stack_base = stack_anchor;
+    child->stack_size = child->stack_base - stack_page;
+    
+    
+    //int new_tid = thread_spawn(NULL, parent_tfr -> x[2], NULL);
+
+    child_proc -> tid = tid;
+    _thread_setup(thrtab[tid], thrtab[tid]->stack_base, parent_tfr->x[11] );
+
+    // TODO: MOVE THIS INSIDE OF THREAD_FINISH_FORK INSTEAD
+    uintptr_t parent_mtag = memory_space_switch(child_proc->mtag);
+
+    // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
+    intr_disable();
+    
+    _thread_finish_fork(thrtab[tid], parent_tfr);
+
+    
+    // fork finish (thread * child, struct trap_frame)
+    return tid;
+}

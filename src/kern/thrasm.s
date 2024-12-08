@@ -230,6 +230,7 @@ _thread_finish_jump:
         .type   _thread_finish_fork, @function
 
 _thread_finish_fork:
+
         # Saves currently running thread -> did in fork to user
         # Switches to new child process thread and back to U mode interrupt handler
         # Restores "saved" trap frame, which is actually duplicated parent trap frame
@@ -256,7 +257,42 @@ _thread_finish_fork:
         # mv t1,tp
         
         #switch to new child process thread
-        call _thread_swtch      #a0 already holds child thread ID
+        # Use tp to save currently running thread
+
+        # call _thread_swtch      #a0 already holds child thread ID
+        add sp, sp, -8
+        sd tp, 0(sp)
+
+        sd      s0, 0*8(tp)
+        sd      s1, 1*8(tp)
+        sd      s2, 2*8(tp)
+        sd      s3, 3*8(tp)
+        sd      s4, 4*8(tp)
+        sd      s5, 5*8(tp)
+        sd      s6, 6*8(tp)
+        sd      s7, 7*8(tp)
+        sd      s8, 8*8(tp)
+        sd      s9, 9*8(tp)
+        sd      s10, 10*8(tp)
+        sd      s11, 11*8(tp)
+        sd      ra, 12*8(tp)
+        sd      sp, 13*8(tp)
+
+        mv      tp, a0
+
+        ld      sp, 13*8(tp)
+        ld      s11, 11*8(tp)
+        ld      s10, 10*8(tp)
+        ld      s9, 9*8(tp)
+        ld      s8, 8*8(tp)
+        ld      s7, 7*8(tp)
+        ld      s6, 6*8(tp)
+        ld      s5, 5*8(tp)
+        ld      s4, 4*8(tp)
+        ld      s3, 3*8(tp)
+        ld      s2, 2*8(tp)
+        ld      s1, 1*8(tp)
+        ld      s0, 0*8(tp)
 
         # Switch to U mode interrupt handler
         la      t6, _trap_entry_from_umode
