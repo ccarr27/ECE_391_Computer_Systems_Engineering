@@ -188,14 +188,14 @@ int process_fork(const struct trap_frame * tfr)
 
 
     //get the process id
-    struct process new_proc;
+    struct process * new_proc = kmalloc(sizeof(struct process));
 
     for(int x = 0; x < NPROC; x++)
     {
         if(!proctab[x])
         {
-            proctab[x] = &new_proc;
-            new_proc.id = x;
+            proctab[x] = new_proc;
+            new_proc->id = x;
             break;
         }
     }
@@ -208,19 +208,19 @@ int process_fork(const struct trap_frame * tfr)
     thread_set_process(main_proc.tid, &main_proc);      // Creates process 0 around main thread and address space
     */
 
-    // Will assign new_proc.tid in thread fork to user
+    // Will assign new_proc->tid in thread fork to user
     for(int x = 0; x < PROCESS_IOMAX; x++)
     {
-        new_proc.iotab[x] = current_process() -> iotab[x];
+        new_proc->iotab[x] = current_process() -> iotab[x];
         
-        if(new_proc.iotab[x] != NULL)
+        if(new_proc->iotab[x] != NULL)
         {
-            new_proc.iotab[x] -> refcnt += 1;
+            new_proc->iotab[x] -> refcnt += 1;
         }
     }
 
-    new_proc.mtag = memory_space_clone(0);
-    console_printf("parent mtag: %llx, child_proc mtag: %llx", csrr_satp(), new_proc.mtag);    
+    new_proc->mtag = memory_space_clone(0);
+    console_printf("parent mtag: %llx, child_proc mtag: %llx", csrr_satp(), new_proc->mtag);    
     
     int y = thread_fork_to_user(&new_proc, tfr);
 

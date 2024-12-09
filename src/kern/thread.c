@@ -667,7 +667,7 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     thrtab[tid] = child;
 
     child->id = tid;
-    //child->name = name;
+    child->name = "lovely-child";
     child->parent = CURTHR;
     child->proc = CURTHR->proc;
     child->stack_base = stack_anchor;
@@ -677,10 +677,11 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     //int new_tid = thread_spawn(NULL, parent_tfr -> x[2], NULL);
 
     child_proc -> tid = tid;
-    _thread_setup(thrtab[tid], thrtab[tid]->stack_base, parent_tfr->x[11] );
+
 
     // TODO: MOVE THIS INSIDE OF THREAD_FINISH_FORK INSTEAD
     uintptr_t parent_mtag = memory_space_switch(child_proc->mtag);
+    kprintf("real parent: %llx, gotten: %llx\n", CURTHR->proc->mtag, parent_mtag);
 
     // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
     intr_disable();

@@ -260,8 +260,9 @@ _thread_finish_fork:
         # Use tp to save currently running thread
 
         # call _thread_swtch      #a0 already holds child thread ID
-        add sp, sp, -8
+        add sp, sp, -2*8
         sd tp, 0(sp)
+        sd a1, 8(sp)
 
         sd      s0, 0*8(tp)
         sd      s1, 1*8(tp)
@@ -280,20 +281,6 @@ _thread_finish_fork:
 
         mv      tp, a0
 
-        ld      sp, 13*8(tp)
-        ld      s11, 11*8(tp)
-        ld      s10, 10*8(tp)
-        ld      s9, 9*8(tp)
-        ld      s8, 8*8(tp)
-        ld      s7, 7*8(tp)
-        ld      s6, 6*8(tp)
-        ld      s5, 5*8(tp)
-        ld      s4, 4*8(tp)
-        ld      s3, 3*8(tp)
-        ld      s2, 2*8(tp)
-        ld      s1, 1*8(tp)
-        ld      s0, 0*8(tp)
-
         # Switch to U mode interrupt handler
         la      t6, _trap_entry_from_umode
         csrw    stvec, t6
@@ -303,23 +290,20 @@ _thread_finish_fork:
         ld t6, 31*8(a1)
         ld sp, 2*8(a1)
 
+        sd a1, 1*8(sp)
         mv sp, a1
 
         restore_sstatus_and_sepc
         restore_gprs_except_t6_and_sp
 
+        ld a1, 1*8(sp)
+
+        ld t6, 31*8(a1)
         ld a0, 4*8(a1)
+        ld sp, 2*8(a1)
+        ld a1, 11*8(a1)
 
-        # Set return value correctly, 0 for child, tid for parent
-        # Set a0 to ...
-
-        # Need to jump to new user process
-
-        #set spie to 1
-        li      t0, (1<<5)
-        csrs    sstatus, t0
-
-        addi    a0, zero, 0
+        mv   a0, zero
 
         sret
 
