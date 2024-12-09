@@ -96,9 +96,9 @@ void default_excp_handler (
 		name = excp_names[code];
 	
 	if (name == NULL)
-		kprintf("Exception %d at %p\n", code, (void*)tfr->sepc);
+		kprintf("Exception %d at %p cause of %p\n", code, (void*)tfr->sepc, (void*)csrr_stval());
 	else
-		kprintf("%s at %p\n", name, (void*)tfr->sepc);
+		kprintf("%s at %p  cause of %p\n", name, (void*)tfr->sepc, (void*)csrr_stval());
 	// If page fault, call mem handle page fault
     panic(NULL);
 }

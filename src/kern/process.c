@@ -189,7 +189,7 @@ int process_fork(const struct trap_frame * tfr)
 
     //get the process id
     struct process * new_proc = kmalloc(sizeof(struct process));
-
+    
     for(int x = 0; x < NPROC; x++)
     {
         if(!proctab[x])

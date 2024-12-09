@@ -673,7 +673,7 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     child->stack_base = stack_anchor;
     child->stack_size = child->stack_base - stack_page;
     
-    
+    child->context.sp = stack_anchor;
     //int new_tid = thread_spawn(NULL, parent_tfr -> x[2], NULL);
 
     child_proc -> tid = tid;
@@ -686,7 +686,18 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
     intr_disable();
     
+    
+
+    set_running_thread(thrtab[tid]);
+    set_thread_state(CURTHR, THREAD_READY);
+    tlinsert(&ready_list, CURTHR);
+
+
+    
     _thread_finish_fork(thrtab[tid], parent_tfr);
+
+    intr_enable();
+
 
     
     // fork finish (thread * child, struct trap_frame)

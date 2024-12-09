@@ -238,9 +238,9 @@ _thread_finish_fork:
         # sret to jump to new user process
 
         # struct trap_frame {
-        # uint64_t x[32]; // x[0] used to save tp when in U mode
-        # uint64_t sstatus;
-        # uint64_t sepc;
+        #   uint64_t x[32]; // x[0] used to save tp when in U mode
+        #   uint64_t sstatus;
+        #   uint64_t sepc;
         # };
 
         # static inline uintptr_t memory_space_switch(uintptr_t mtag) {
@@ -253,16 +253,11 @@ _thread_finish_fork:
         #parent trap frame - a1
         #child thread id - t0
 
-        #save saves currently running thread
-        # mv t1,tp
-        
-        #switch to new child process thread
         # Use tp to save currently running thread
 
-        # call _thread_swtch      #a0 already holds child thread ID
-        add sp, sp, -2*8
-        sd tp, 0(sp)
-        sd a1, 8(sp)
+        # addi    sp, sp, -2*8
+        # sd      tp, 0(sp)
+        # sd      a1, 8(sp)
 
         sd      s0, 0*8(tp)
         sd      s1, 1*8(tp)
@@ -270,7 +265,7 @@ _thread_finish_fork:
         sd      s3, 3*8(tp)
         sd      s4, 4*8(tp)
         sd      s5, 5*8(tp)
-        sd      s6, 6*8(tp)
+        sd      s6, 6*8(tp)     
         sd      s7, 7*8(tp)
         sd      s8, 8*8(tp)
         sd      s9, 9*8(tp)
@@ -279,33 +274,82 @@ _thread_finish_fork:
         sd      ra, 12*8(tp)
         sd      sp, 13*8(tp)
 
+        #now parent thread has been saved
+
+        ld      tp, 13*8(a0)
+        csrrw   sp, sscratch, tp
+
         mv      tp, a0
 
-        # Switch to U mode interrupt handler
+        #now we are in the child thread
+
+        # Switch to U mode interrupt handler becuase child needs to be in user
         la      t6, _trap_entry_from_umode
         csrw    stvec, t6
 
-        # Restore saved trap frame?
+        #now the child has the umode interrupt handler
 
-        ld t6, 31*8(a1)
-        ld sp, 2*8(a1)
+        #the child now needs the parent trap frame 
+        #(but don't restore a1 till end since it points to the parent trap frame)
 
-        sd a1, 1*8(sp)
-        mv sp, a1
+        #restoring sstatus and sepc
+        ld      t6, 33*8(a1)
+        csrw    sepc, t6
+        ld      t6, 32*8(a1)
+        csrw    sstatus, t6
 
-        restore_sstatus_and_sepc
-        restore_gprs_except_t6_and_sp
+        ld      t6,  31*8(a1)   #t6
+        ld      x30, 30*8(a1)   # x30 is t5
+        ld      x29, 29*8(a1)   # x29 is t4
+        ld      x28, 28*8(a1)   # x28 is t3
+        ld      x27, 27*8(a1)   # x27 is s11
+        ld      x26, 26*8(a1)   # x26 is s10
+        ld      x25, 25*8(a1)   # x25 is s9
+        ld      x24, 24*8(a1)   # x24 is s8
+        ld      x23, 23*8(a1)   # x23 is s7
+        ld      x22, 22*8(a1)   # x22 is s6
+        ld      x21, 21*8(a1)   # x21 is s5
+        ld      x20, 20*8(a1)   # x20 is s4
+        ld      x19, 19*8(a1)   # x19 is s3
+        ld      x18, 18*8(a1)   # x18 is s2
+        ld      x17, 17*8(a1)   # x17 is a7
+        ld      x16, 16*8(a1)   # x16 is a6
+        ld      x15, 15*8(a1)   # x15 is a5
+        ld      x14, 14*8(a1)   # x14 is a4
+        ld      x13, 13*8(a1)   # x13 is a3
+        ld      x12, 12*8(a1)   # x12 is a2
+        # ld      x11, 11*8(a1)   # x11 is     #a1 should get restored all the way at the end
+        ld      x10, 10*8(a1)   # x10 is a0
+        ld      x9, 9*8(a1)     # x9 is s1
+        ld      x8, 8*8(a1)     # x8 is s0/fp
+        ld      x7, 7*8(a1)     # x7 is t2
+        ld      x6, 6*8(a1)     # x6 is t1
+        ld      x5, 5*8(a1)     # x5 is t0
+        # ld      x4, 4*8(a1)     # x4 is tp            #child tp is different
+        ld      x3, 3*8(a1)     # x3 is gp
+        # ld      sp, 2*8(a1)                   #each thread has its own sp i think
+        ld      x1, 1*8(a1)     # x1 is ra
+        #restore t6
+        # ld      t6,  31*8(a1)
+        # ld      a1, 1*8(sp)
+        # ld      t6, 31*8(a1)
+        # ld      a0, 4*8(a1)
+        # ld      sp, 2*8(a1)
 
-        ld a1, 1*8(sp)
+        #last thing we do is load a1
+        ld      a1, 11*8(a1)
 
-        ld t6, 31*8(a1)
-        ld a0, 4*8(a1)
-        ld sp, 2*8(a1)
-        ld a1, 11*8(a1)
+        li      a0, (1<<8)
+        csrc    sstatus, a0
 
-        mv   a0, zero
+        li      a0, (1<<5)
+        csrs    sstatus, a0
 
-        sret
+        mv   a0, zero           #return value for child
+
+
+
+        sret    #here we are ready to run the child
 
         #sret does:
         #set pc to sepc
