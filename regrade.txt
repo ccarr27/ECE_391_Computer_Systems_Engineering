@@ -1,3 +1,6 @@
+We are using the same branch for our cp1 regrade and cp3 grade, so make sure to 
+run the fib test before looking at cp1 regrades. 
+
 Checkpoint 1:
 
 To run our tests for checkpoint one, switch to the cp1done branch

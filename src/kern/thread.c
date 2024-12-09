@@ -234,7 +234,7 @@ int thread_spawn(const char * name, void (*start)(void *), void * arg) {
     tlinsert(&ready_list, child);
     intr_restore(saved_intr_state);
 
-    _thread_setup(child, child->stack_base, start, arg);
+    _thread_setup(child, child->stack_base, (void *) start, arg);
     
     return tid;
 }
@@ -663,7 +663,8 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     struct thread_stack_anchor * stack_anchor;
     void * stack_page;
     struct thread * child;
-    int saved_intr_state;
+    //int saved_intr_state;
+    //uintptr_t parent_mtag = 
     int tid;
 
     trace("%s(name=\"%s\") in %s", __func__, name, CURTHR->name);
@@ -712,7 +713,7 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     // TODO: MOVE THIS INSIDE OF THREAD_FINISH_FORK INSTEAD
     
     int s = intr_disable();
-    uintptr_t parent_mtag = memory_space_switch(child_proc->mtag);
+    memory_space_switch(child_proc->mtag);
     asm inline ("sfence.vma" ::: "memory");
     intr_restore(s);
 
@@ -727,7 +728,7 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     set_thread_state(CURTHR, THREAD_READY);
     tlinsert(&ready_list, CURTHR);
     
-    _thread_finish_fork(thrtab[tid], parent_tfr);
+    //_thread_finish_fork(thrtab[tid], parent_tfr);
 
     intr_enable();
 

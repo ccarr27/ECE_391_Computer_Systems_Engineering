@@ -3,6 +3,7 @@
 #include "elf.h"
 #include "io.h"
 #include "config.h"
+#include "console.h"
 
 
 #include <stddef.h>
