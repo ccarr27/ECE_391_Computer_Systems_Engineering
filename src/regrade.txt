@@ -1,0 +1,84 @@
+Checkpoint 1:
+
+To run our tests for checkpoint one, switch to the cp1done branch
+	git switch cp1done
+
+Full I/O for the vioblk device:
+To run our vioblk tests, call run-vio_test
+
+run-vio_test meets the following criteria from the CP1 rubric:
+- Student demonstrates working initialize and attach virtio device with vioblk open / 6 pts: 
+
+Uses vio_open to initialize and attach the virtio device, as shown by the return value being 0 when opening the blk device with an instance number of 0 - we can also see that vio_open works correctly when we perform functions on the device in the following tests (6 points)
+- Student demonstrates ioctl commands – get length / 2 pts:
+We next test IOCTL to get the length of the device, printing the value out as “length” (2 points)
+
+- Student demonstrates ioctl commands – get position / 2 pts:
+We next test IOCTL to get the current position of the device, which should be 0, printing out the value as “pos” (2 points)
+
+- Student demonstrates working read from the virtio device with vioblk read / 4 pts:
+We next read 512 bytes from the blkio device into a buffer, printing the buffer out onto the screen (4 points)
+We then check the position again, which we see has correctly been updated to 512.
+
+- Student demonstrates ioctl commands – set position / 2 pts:
+Next, we want to move back to position 0, so we set the position to 0 and check this by printing the result of get position (2 points)
+
+- Student demonstrates working write on the virtio device with vioblk write / 4 pts:
+NEED TO ADD. Now, we write a simple message, “Hello World!” to the beginning of the device. We use vioblk_write to perform this, and we check it by setting the position back to 0 and reading the device to see that our message is now printed out (4 points)
+
+- Student demonstrates ioctl commands – get block size / 2 pts:
+NEED TO ADD We test the IOCTL for get block size by simply printing this value to the console (2 points)
+
+- Correct usage of Interrupt Service Routine (vioblk isr) / 3 pts:
+NEED TO ADD We show that vioblk_isr works by calling this function with our specified instance number of 0. We can see that the condition has been broadcast
+
+main shell works as expected / 5 pts:
+Our main_shell also works, call run-shell to show that it works.
+
+
+
+
+
+Checkpoint 2:
+- Now, we will show that our tests work for cp2, so switch to cp2done
+git switch cp2done
+
+Process Abstraction:
+Student demonstrates successful user process execution by running a known process (init0,init1,init2) / 15 pts • Student demonstrates successful user process cleanup (no errors after process execution, exiting gracefully):
+Init0, init1, and init2 all work as intended. They should all be in the kfs.raw file currently in the kern, but if they do not then the following commands can be ran
+
+cd ../user
+make all
+cd ../util
+./mkfs kfs.raw bin/init0 bin/init1 bin/init2 bin/trek bin/init_test /bin/hello
+Drag the updated kfs.raw file from util to kern
+cd ../kern
+make clean
+
+You can then write each process in main.c (init0, init1, init2), which will all work as intended (15 points)
+The user process cleanup is also successful (we should have already gotten points for this, but if not it still works as intended) (5 points)
+
+System Calls:
+Most of the system calls are tested in the init files already ran, but we have also created init_test to demonstrate working functionality of the rest of the syscalls.
+
+_msgout
+_devopen
+_write
+_close
+_fsopen
+_exec
+
+Are already shown in the previous process, so we need to test the following:
+_exit
+_read
+_ioctl
+
+Replacing the process name in main.c with “init_test” and then running make run-kernel will show 
+these tests working. We first open the “hello” file and read from it, where we can see “ ELF “, 
+which is the first part of the hello file -> we can eventually see the actual code. 
+(NEED TO SHOW) (3 points). We then test the _ioctl syscall by checking the current position, 
+which should be 5, setting the position back to 0, and then checking the position again to see that 
+the position has been set back to 0 (3 points). Lastly, we use the exit syscall to exit out of the 
+user program (4 points). Thus, all of the system calls have been shown to work properly.
+
+
