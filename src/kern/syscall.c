@@ -402,7 +402,7 @@ Description: sysioctl performs an ioctl with the given iotab. The return value o
 
 static int sysioctl(int fd, int cmd, void * arg)
 {
-    if(cmd == IOCTL_SETLEN)
+    if(cmd == IOCTL_SETPOS)
     {
     uint64_t * tempVal = (uint64_t *) arg;
     int temp = ioseek(current_process() -> iotab[fd], *tempVal);
