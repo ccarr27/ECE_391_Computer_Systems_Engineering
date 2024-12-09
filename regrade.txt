@@ -1,0 +1,101 @@
+Checkpoint 1:
+
+To run our tests for checkpoint one, switch to the cp1done branch
+	git switch cp1done
+
+We missed the following points in our CP1 demo:
+- vioblk_open (6 points)
+- vioblk_read (4 points)
+- vioblk_write (4 points)
+- vioblk_ioctl (8 points)
+- vioblk_isr (3 points)
+
+Full I/O for the vioblk device:
+To run our vioblk tests, call 
+	make run-main_test
+
+run-vio_test meets the following criteria from the CP1 rubric:
+- Student demonstrates working initialize and attach virtio device with vioblk open / 6 pts: 
+Uses vio_open to initialize and attach the virtio device, as shown by the return value being 0 
+when opening the blk device with an instance number of 0 - we can also see that vio_open works 
+correctly when we perform functions on the device in the following tests (6 points)
+
+- Student demonstrates ioctl commands – get length / 2 pts:
+We next test IOCTL to get the length of the device, printing the value out as “length” (2 points)
+
+- Student demonstrates ioctl commands – get block size / 2 pts:
+We test the IOCTL for get block size by simply printing this value to the 
+console (2 points)
+
+- Student demonstrates ioctl commands – get position / 2 pts:
+We next test IOCTL to get the current position of the device, which should be 0, printing out 
+the value as “pos” (2 points)
+
+- Student demonstrates working write on the virtio device with vioblk write / 4 pts:
+We write 512 1's to the screen. We can see that the write has been successful, and we
+will check this by reading from the vio_blk device (4 points).
+
+- Student demonstrates ioctl commands – set position / 2 pts:
+Next, we want to move back to position 0, so we set the position to 0 and check this by 
+printing the result of get position (2 points)
+
+- Student demonstrates working read from the virtio device with vioblk read / 4 pts:
+We next read 512 bytes from the blkio device into a buffer, printing the buffer out
+onto the screen (4 points)
+We then check the position again, which we see has correctly been updated to 512.
+
+
+
+
+
+
+
+Checkpoint 2:
+- Now, we will show that our tests work for cp2, so switch to cp2done
+git switch cp2done
+
+The kfs.raw file should be updated. If for some reason it is not, you can run the following:
+
+cd ../user
+make all
+cd ../util
+/mkfs kfs.raw ../user/bin/init_test ../user/bin/trek ../user/bin/init0 ../user/bin/init1 ../user/bin/init2 ../user/bin/hello ../user/bin
+Drag the updated kfs.raw file from util to kern
+cd ../kern
+make clean
+
+We missed the following points in our CP2 demo:
+- Sysexit works (4 points)
+- Sysclose works (3 points)
+- Sysread works (3 points)
+- Syswrite works (3 points)
+- Sysioctl works (3 points)
+- Sysexec works (5 points)
+
+System Calls:
+We have created a couple user process that explicitly tests each of the above system calls
+to demonstrate that they work properly. 
+
+- First go to main.c and make sure line 12 says the following: #define INIT_PROC "init_test"
+init_test does the following:
+- Opens the "hello" file
+- Writes a message, "WORK!" to the file
+- Gets the current position of the file using ioctl, which is now 5 because of the write
+that was performed
+- Sets the position back to zero to read from the beginning of the file, and 
+gets the position to ensure that it is 0, which shows that sysioctl (3 points) works
+- Reads the first part of the file, which shows that "WORK!" has been written
+- This demonstrates that sysread (3 points) and syswrite (3 points) works properly
+- Next, we open another file, "init0." We close "Hello" and try to write to it, which we now
+cannot since it is closed, which means that sysclose (3 points) works
+
+Now replace line 12 in main.c so that it says the following: #define INIT_PROC "init_test2"
+- init_test2 first tries to open a device that doesn't exist. 
+- Since the device doesn't exist, _devopen fails and we call _exit (4 points)
+- We have other stuff in the file, but it doesn't run since we call _exit, showing that
+the system call works correctly
+
+Now replace line 12 in main.c so that it says the following: #define INIT_PROC "init_test3"
+- init_test3 opens a device and opens the trek file
+- It uses _exec (5 points) to run trek, which works if you open the screen
+- Trek works properly and exits upon stopping the game.

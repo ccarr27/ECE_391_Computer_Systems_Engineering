@@ -155,7 +155,7 @@ void main(void) {
     intr_init();
     devmgr_init();
     thread_init();
-    timer_init();
+    //timer_init();
 
     heap_init(_kimg_end, (void*)USER_START);
     char buffer [512];
@@ -177,43 +177,52 @@ void main(void) {
     }
 
     intr_enable();
-    timer_start();
+    //timer_start();
 
 
     result = device_open(&blkio, "blk", 0);
 
     if (result != 0)
         panic("device_open failed");
+    else
+    {
+        kprintf("device open successful \n");
+    }
 
     uint64_t length;
     uint64_t pos;
+    uint64_t blk_size;
 
     (blkio->ops)->ctl(blkio, IOCTL_GETLEN, &length );
 
     kprintf("length: %d\n", length);
 
+    (blkio->ops)->ctl(blkio, IOCTL_GETBLKSZ, &blk_size );
+
+    kprintf("block size: %d\n", blk_size);
+
     // ///////////////////
     // //write
 
-    // for (int i =0; i <512;i++){
-    //     buffer[i] = 1;
-    // }
+    for (int i =0; i <512;i++){
+        buffer[i] = 1;
+    }
 
-    // uint64_t posptr = 0;
+    uint64_t posptr = 0;
 
-    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
+    blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
 
-    // blkio->ops->write(blkio, buffer, 512);
+    blkio->ops->write(blkio, buffer, 512);
 
-    // //set postion back to 0 to read from 0
-    // posptr = 0;
+    //set postion back to 0 to read from 0
+    posptr = 0;
 
-    // blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
+    blkio->ops->ctl(blkio, IOCTL_SETPOS, &posptr);
 
-    // //check postion to make sure it is zero
-    // blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
+    //check postion to make sure it is zero
+    blkio->ops->ctl(blkio, IOCTL_GETPOS, &pos );
 
-    // kprintf("pos: %d\n", pos);
+    kprintf("pos: %d\n", pos);
 
     //now we can read
 
@@ -230,11 +239,16 @@ void main(void) {
     (blkio->ops)->ctl(blkio, IOCTL_GETPOS, &pos );
     kprintf("pos: %d\n", pos);
 
+    pos = 0;
+    (blkio->ops)->ctl(blkio, IOCTL_SETPOS, &pos );
+
+    (blkio->ops)->ctl(blkio, IOCTL_GETPOS, &pos );
+    kprintf("pos after going back to 0 (showing set pos to 0): %d\n", pos);
 
     kprintf("\n\n");
 
 
-
+    
 
 
 

@@ -54,7 +54,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
-all: kernel.elf
+all: kernel.elf main_test.elf
 
 kernel.elf: $(CORE_OBJS) main.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
@@ -64,6 +64,18 @@ run-kernel: kernel.elf
 
 debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+maintest.elf: $(CORE_OBJS) main_tests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-main_test: maintest.elf
+	$(QEMU) $(QEMUOPTS)
+
+# memory.elf: $(CORE_OBJS) memory_tests.o companion.o
+# 	$(LD) -T kernel.ld -o $@ $^
+
+# run-memory: memory.elf
+# 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi

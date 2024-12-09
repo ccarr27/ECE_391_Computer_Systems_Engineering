@@ -276,10 +276,11 @@ _thread_finish_fork:
 
         #now parent thread has been saved
 
-        ld      tp, 13*8(a0)
-        csrrw   sp, sscratch, tp
+        # ld      tp, 13*8(a0)
+        # csrrw   sp, sscratch, tp
 
         mv      tp, a0
+        ld      sp, 13*8(a0)
 
         #now we are in the child thread
 
@@ -319,7 +320,7 @@ _thread_finish_fork:
         ld      x13, 13*8(a1)   # x13 is a3
         ld      x12, 12*8(a1)   # x12 is a2
         # ld      x11, 11*8(a1)   # x11 is     #a1 should get restored all the way at the end
-        ld      x10, 10*8(a1)   # x10 is a0
+        # ld      x10, 10*8(a1)   # x10 is a0
         ld      x9, 9*8(a1)     # x9 is s1
         ld      x8, 8*8(a1)     # x8 is s0/fp
         ld      x7, 7*8(a1)     # x7 is t2
@@ -329,6 +330,12 @@ _thread_finish_fork:
         ld      x3, 3*8(a1)     # x3 is gp
         # ld      sp, 2*8(a1)                   #each thread has its own sp i think
         ld      x1, 1*8(a1)     # x1 is ra
+
+        #kcsp
+
+        csrrw sp, sscratch, sp
+
+
         #restore t6
         # ld      t6,  31*8(a1)
         # ld      a1, 1*8(sp)
@@ -344,7 +351,6 @@ _thread_finish_fork:
 
         li      a0, (1<<5)
         csrs    sstatus, a0
-
         mv   a0, zero           #return value for child
 
 

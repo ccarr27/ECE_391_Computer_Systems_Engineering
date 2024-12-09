@@ -27,7 +27,9 @@ ALL_TARGETS = \
 	bin/init_trek_rule30 \
 	bin/init_fib_rule30 \
 	bin/init_fib_fib \
-	bin/fib
+	bin/fib \
+	bin/locking \
+	bin/refcnt_test
 
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
@@ -77,6 +79,11 @@ bin/init_fib_rule30: $(ULIB_OBJS) init_fib_rule30.o
 bin/init_fib_fib: $(ULIB_OBJS) init_fib_fib.o
 	$(LD) -T user.ld -o $@ $^
 
+bin/locking: $(ULIB_OBJS) locking.o
+	$(LD) -T user.ld -o $@ $^
+
+bin/refcnt_test: $(ULIB_OBJS) refcnt_test.o
+	$(LD) -T user.ld -o $@ $^
 
 clean:
 	rm -rf *.o *.elf *.asm $(ALL_TARGETS)

@@ -37,6 +37,10 @@
 /* e_ident[EI_DATA] */
 #define ELFDATA2LSB	1       //this is what specifies little endian
 
+#define EOTHER 10
+#define EWRONG 11
+#define EFOR 4
+#define ESEV 7
 
 //memory ranges
 #define min_prog_range 0x80100000
@@ -131,26 +135,26 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
     //next make sure it has the elf mag number
     if (elf_header.e_ident[EI_MAG0] != ELFMAG0 || elf_header.e_ident[EI_MAG1] != ELFMAG1 || elf_header.e_ident[EI_MAG2] != ELFMAG2 || (elf_header.e_ident[EI_MAG3] != ELFMAG3)) {
-        return -2;
+        return -EBUSY;
     }
     
     //make sure 64 bits
     if(elf_header.e_ident[EI_CLASS] != ELFCLASS64){
-        return -9;
+        return -EBADFD;
     }
 
     //make sure this is little endian
     if(elf_header.e_ident[EI_DATA] != ELFDATA2LSB){
-        return -10;
+        return -EOTHER;
     }
 
     if (elf_header.e_machine != EM_RISCV) {
-        return -11;  //was not a RISC-V file
+        return -EWRONG;  //was not a RISC-V file
     }
 
     //make sure we are looking at an executable file
     if(elf_header.e_type != ET_EXEC){
-        return -3;
+        return -EI_MAG3;
     }
 
 
@@ -173,12 +177,12 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
         if(ioseek(io, seek_pos) < 0){        //if ioseek returns less than 0 (in this case -4) then we have an error
             // console_printf("ioseek failed at position %lx\n", seek_pos);
-            return -4;
+            return -EFOR;
         }
 
         //now we can read
         if(ioread(io, &prog_header, sizeof(Elf64_Phdr)) != (long)(sizeof(Elf64_Phdr))){ //we expect to get the same size back
-            return -5; 
+            return -EI_DATA; 
         }
 
         //now only continue if our program is type PT Load
@@ -192,7 +196,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
 
             //now we make sure it falls within the bounds of x80100000 and 0x81000000
             if((Elf64_Addr)v_addr < USER_START_VMA || ((Elf64_Addr)v_addr + prog_header.p_memsz > USER_END_VMA)){
-                return -6;
+                return -EBADFMT;
             }
 
 
@@ -218,7 +222,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             
             //we know we are within range so seek to the beginning of the file
             if(ioseek(io, prog_header.p_offset) < 0){ //make sure we dont get an error
-                return -7;
+                return -ESEV;
             }
 
 
@@ -237,7 +241,7 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             
 
             if(ioread(io, v_addr, prog_header.p_filesz) != (long)prog_header.p_filesz){ //make sure the file is the same size
-                return -8;
+                return -EACCESS;
                 // console_printf("line: %d \n", __LINE__);
                 
             }

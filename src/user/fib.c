@@ -7,7 +7,7 @@ void main(void) {
     char linebuf[64];
     unsigned int n;
 
-    for (n = 0; n < 10; n++) {
+    for (n = 0; n < 60; n++) {
         snprintf(linebuf, sizeof(linebuf), "f(%u) = %u\n", n, fib(n));
         _msgout(linebuf);
     }

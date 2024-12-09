@@ -10,4 +10,38 @@ i just needed to check for the number 243
 3. When making tests i could not 
 
 
+Sam:
+1. 
+6 fs open bugs
+3 process bugs
+2 syscall bug
+2 fork bugs
+
+
+
+CP3:
+
+Neel:
+Memory clone
+We had a problem with memory clone, because we were defining two variables to hold the old and new clone,
+We were accidentally overwrriting the variable instead of using a pointer. This makes our cloned memory space
+show up well on info mem. 
+
+We are still facing issues with this, because our _fork is not able to find the instruction in the location 
+it should be.
+
+Dash:
+
+When initially testing locking on a dummy program, Locking "failed to get write lock"
+Bunch of execution bugs - add detail, fixed with Carlos
+
+
+
+
+
+
+
+
+
+
 add-symbol-file ../user/bin/init0 0x0000000c0000000

@@ -5,57 +5,58 @@ void main(void) {
     int result;
 
     result = _fsopen(1, "hello");
-    
-    _fork();
 
-    if()
-
-
-
-
-    if (_fork()) {
-#if 1
-        // Open ser1 device as fd=0
-        result = _devopen(0, "ser", 1);
-
-        if (result < 0) {
-            _msgout("_devopen failed");
-            _exit();
-        }
-
-        // exec trek
-
-        result = _fsopen(1, "trek");
-
-        if (result < 0) {
+    if (result < 0) {
             _msgout("_fsopen failed");
             _exit();
         }
 
-        _exec(1);
-#else
-        _wait(0);
-#endif
-    } else {
-#if 1
-        // Open ser1 device as fd=0
-        result = _devopen(0, "ser", 2);
+    result = _fork();
 
-        if (result < 0) {
-            _msgout("_devopen failed");
-            _exit();
-        }
-
-        // exec trek
-
-        result = _fsopen(1, "rule30");
-
-        if (result < 0) {
-            _msgout("_fsopen failed");
-            _exit();
-        }
-
-        _exec(1);
-#endif
+    if(result != 0)
+    {
+        // if this is parent...
+        _close(1);
     }
-}
+    else
+    {
+       char tempBuff[5];
+        readRes = _read(1, tempBuff, sizeof(tempBuff));
+    if (readRes < 0) {
+        _msgout("_read not working");
+    }
+    else{
+        _msgout("_read worked");
+    }
+
+    _msgout(tempBuff);
+
+    int setPos = 0;
+    int otherCheck = _ioctl(1, 4, &setPos); // Set pos
+        if (otherCheck == setPos) {
+        _msgout("ioctl works");
+    }
+    else{
+        _msgout("ioctl does not work");
+    }
+
+    const char * const greeting = "Hello, world!\r\n";
+    size_t slen;
+
+    slen = strlen(greeting);
+    int writeRes = _write(1, greeting, slen);
+    if (writeRes < 0) {
+        _msgout("_write not working");
+    }
+    else{
+        _msgout("_write worked");
+    }
+
+    _close();
+    _exit();
+
+    }
+
+    _exit();
+
+    }

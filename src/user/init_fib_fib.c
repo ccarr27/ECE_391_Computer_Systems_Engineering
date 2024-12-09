@@ -4,9 +4,10 @@
 void main(void) {
     int result;
     
-    _fork();
+    // _fork();
     
     result = _fsopen(0, "fib");
+    
 
     if (result < 0) {
         _msgout("_fsopen failed");

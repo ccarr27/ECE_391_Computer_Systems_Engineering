@@ -172,7 +172,7 @@ _trap_entry_from_umode:
         addi    sp, sp, -34*8   # allocates room for trap frame
 
         sd      t6, 31*8(sp)    # save t6 (x31) in trap frame    //sam
-        csrr    t6, sscratch    # copy original sp
+        csrr    t6, sscratch    # copy original umode sp
         sd      t6, 2*8(sp)     # save origin sp
 
         save_gprs_except_t6_and_sp
@@ -203,11 +203,11 @@ _trap_entry_from_umode:
 
 
         # TODO: FIXME your code here
-        addi    sp, sp, 34*8   # allocates room for trap frame
+        addi    sp, sp, 34*8   # deallocates room for trap frame
 
         csrw   sscratch, sp    
 
-        addi    sp, sp, -34*8   # deallocates room for trap frame
+        addi    sp, sp, -34*8   # reallocates room for trap frame
 
         ld      t6, 31*8(sp)
         ld      sp, 2*8(sp)   

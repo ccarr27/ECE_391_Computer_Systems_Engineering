@@ -509,8 +509,12 @@ void suspend_self(void) {
 
     intr_enable();
 
-    if (next_thread->proc != NULL)
+    if (next_thread->proc != NULL) {
+        int s = intr_disable();
         memory_space_switch(next_thread->proc->mtag);
+        asm inline ("sfence.vma" ::: "memory");
+        intr_restore(s);
+    }
 
     trace("Thread <%s> calling _thread_swtch(<%s>)",
         CURTHR->name, next_thread->name);
@@ -658,6 +662,7 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     child = kmalloc(sizeof(struct thread));
 
     stack_page = memory_alloc_page();
+    // memcpy(stack_page, CURTHR->stack_base, PAGE_SIZE);
     stack_anchor = stack_page + PAGE_SIZE;
     stack_anchor -= 1;
     stack_anchor->thread = child;
@@ -667,32 +672,39 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     thrtab[tid] = child;
 
     child->id = tid;
-    child->name = "lovely-child";
+    child->name = "downie-child";
     child->parent = CURTHR;
     child->proc = CURTHR->proc;
     child->stack_base = stack_anchor;
     child->stack_size = child->stack_base - stack_page;
     
-    child->context.sp = stack_anchor;
+
+    child->context.ra = (void (*)(uint64_t))(CURTHR->context.ra);
+    child->context.sp = (void *)(stack_anchor);
+    for (int i = 0; i < 12; i++)
+        child->context.s[i] = (uint64_t)(CURTHR->context.s[i]);
     //int new_tid = thread_spawn(NULL, parent_tfr -> x[2], NULL);
 
     child_proc -> tid = tid;
 
 
     // TODO: MOVE THIS INSIDE OF THREAD_FINISH_FORK INSTEAD
+    
+    int s = intr_disable();
     uintptr_t parent_mtag = memory_space_switch(child_proc->mtag);
-    kprintf("real parent: %llx, gotten: %llx\n", CURTHR->proc->mtag, parent_mtag);
+    asm inline ("sfence.vma" ::: "memory");
+    intr_restore(s);
+
+
+    // kprintf("real parent: %llx, gotten: %llx\n", CURTHR->proc->mtag, parent_mtag);
 
     // struct thread * parent_thread = _thread_swtch(thrtab[tid]);
     intr_disable();
     
-    
-
-    set_running_thread(thrtab[tid]);
+    // set_running_thread(thrtab[tid]);
+    set_thread_state(child, THREAD_RUNNING);
     set_thread_state(CURTHR, THREAD_READY);
     tlinsert(&ready_list, CURTHR);
-
-
     
     _thread_finish_fork(thrtab[tid], parent_tfr);
 
@@ -703,3 +715,25 @@ int thread_fork_to_user(struct process * child_proc, const struct trap_frame * p
     // fork finish (thread * child, struct trap_frame)
     return tid;
 }
+
+/*
+struct thread_context {
+    uint64_t s[12];
+    void (*ra)(uint64_t);
+    void * sp;
+};
+
+struct thread {
+    struct thread_context context; // must be first member (thrasm.s)
+    const char * name;
+    void * stack_base;
+    size_t stack_size;
+    enum thread_state state;
+    int id;
+    struct process * proc;
+    struct thread * parent;
+    struct thread * list_next;
+    struct condition * wait_cond;
+    struct condition child_exit;
+};
+*/

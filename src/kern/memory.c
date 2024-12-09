@@ -819,6 +819,7 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
 
     // Need to make new pt2 with new root
     struct pte * pt2_new = (struct pte *)memory_alloc_page();
+    memset((void*)pt2_new, 0, PAGE_SIZE);
 
     // struct pte* pt0_pte = walk_pt(pt2_new,USER_START_VMA ,1);
 
@@ -834,24 +835,25 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
     for(int vpn2 = 0; vpn2 < PTE_CNT; vpn2++){
         //get the current pt1 entry
         struct pte old_pt2_entry = pt2_old[vpn2];
-        // struct pte new_pt2_entry = pt2_new[vpn2];
+        pt2_new[vpn2] = old_pt2_entry;
 
         //check if it is active
-        if((old_pt2_entry.flags & PTE_V) == 0 ){
+        if((old_pt2_entry.flags & PTE_V) != PTE_V ){
             continue;   //valid flag was zero so nothing to see here
         }
 
+        // pt2_new[vpn2] = old_pt2_entry;
+
         if(old_pt2_entry.flags & PTE_G){
             //global so shallow copy
-            pt2_new[vpn2] = old_pt2_entry;
             continue;
         }
 
         // if r w g flags are all 0 then there is 
         // check if it points to next level
-        if(old_pt2_entry.flags & (PTE_R | PTE_W | PTE_X)){
-            continue;   //one was not zero
-        }
+        // if(old_pt2_entry.flags & (PTE_R | PTE_W | PTE_X)){
+        //     continue;   //one was not zero
+        // }
 
         //set the pt2_new_pte to point to the pt1_new
         //level 1 user table here so we deep copy
@@ -859,7 +861,7 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
         pt2_new[vpn2] = ptab_pte(pt1_new, old_pt2_entry.flags);
         // console_printf("parent mtag: %llx, child_proc mtag: %llx", old_pt2_entry, new_pt2_entry);
 
-        console_printf("file: %s line: %d. making a new level 1 table\n",__FILE__, __LINE__);
+        // console_printf("file: %s line: %d. making a new level 1 table\n",__FILE__, __LINE__);
 
 
         //get the old pt1 table
@@ -868,31 +870,32 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
         for(int vpn1 = 0; vpn1 < PTE_CNT; vpn1++){
             struct pte old_pt1_entry = pt1_old[vpn1];      //old pt1 entry
             // struct pte new_pt1_entry = pt1_new[vpn1];      //curr pt1 entry
+            pt1_new[vpn1] = old_pt1_entry;
 
             if((old_pt1_entry.flags & PTE_V) == 0 ){
                 continue;   //valid flag was zero so nothing to see here
             }
 
             //if global
+            // pt1_new[vpn1] = old_pt1_entry;
 
             if(old_pt1_entry.flags & PTE_G){
                 //global so shallow copy
-                pt1_new[vpn1] = old_pt1_entry;
                 continue;
             }
 
 
             //if r w g flags are all 0 then there is 
             //check if it points to next level
-            if(old_pt1_entry.flags & (PTE_R | PTE_W | PTE_X)){
-                continue;   //one was not zero
-            }
+            // if(old_pt1_entry.flags & (PTE_R | PTE_W | PTE_X)){
+            //     continue;   //one was not zero
+            // }
 
             struct pte * pt0_new = (struct pte *)memory_alloc_page();
             pt1_new[vpn1] = ptab_pte(pt0_new, old_pt1_entry.flags);
             // console_printf("parent mtag: %llx, child_proc mtag: %llx", old_pt1_entry, new_pt1_entry);
 
-            console_printf("file: %s line: %d. making a new level 0 table\n",__FILE__, __LINE__);
+            // console_printf("file: %s line: %d. making a new level 0 table\n",__FILE__, __LINE__);
 
 
             //get the old pt0 table
@@ -902,21 +905,17 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
                 //now we deep copy the physical pages that exist
 
                 struct pte old_pt0_entry = pt0_old[vpn0];      //curr pt0 entry
+                pt0_new[vpn0] = old_pt0_entry;
                 // struct pte new_pt0_entry = pt0_new[vpn0];      //curr pt0 entry
                 //check if it is active
                 if((old_pt0_entry.flags & PTE_V) == 0 ){
                     continue;   //valid flag was zero so nothing to see here
                 }
 
+                // pt0_new[vpn0] = old_pt0_entry;
+
                 if(old_pt0_entry.flags & PTE_G){
                     //global so shallow copy
-                    pt0_new[vpn0] = old_pt0_entry;
-                    continue;
-                }
-
-                // Want to only copy pages with U flag set
-                if((old_pt0_entry.flags & PTE_U) == 0)
-                {
                     continue;
                 }
 
@@ -926,10 +925,8 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
 
                 //then copy the information at the page
                 memcpy(pp,pagenum_to_pageptr(old_pt0_entry.ppn),PAGE_SIZE);
-                console_printf("file: %s line: %d. copying a physical page to the new space\n",__FILE__, __LINE__);
+                // console_printf("file: %s line: %d. copying a physical page to the new space\n",__FILE__, __LINE__);
                 // console_printf("parent mtag: %llx, child_proc mtag: %llx", old_pt0_entry, new_pt0_entry);
-
-                sfence_vma();
 
             }
 
@@ -937,11 +934,12 @@ uintptr_t memory_space_clone(uint_fast16_t asid)
 
     }
 
+    sfence_vma();
+
     uintptr_t new_mtag =  // Sv39
         ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) |
         pageptr_to_pagenum(pt2_new);
 
-    sfence_vma();
     return new_mtag;
 }
 

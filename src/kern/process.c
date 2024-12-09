@@ -100,11 +100,33 @@ jumping to user mode with the entry pointer as the upc, which allows the jump_to
 // Executes program referred to by I/O interface
 int process_exec(struct io_intf * exeio)
 {
+
+
+    /*
+    (a) First any virtual memory mappings belonging to other user processes should be unmapped.
+    
+    (b) Then a fresh 2nd level (root) page table should be created and initialized with the default map-
+    pings for a user process. (This is not required for Checkpoint 2, as in Checkpoint 2 any user
+    process will live in the ”main” memory space.)
+    
+    (c) Next the executable should be loaded from the I/O interface provided as an argument into the
+    mapped pages. (Hint: elf load)
+    
+    (d) Finally, the thread associated with the process needs to be started in user-mode. (Hint: An as-
+    sembly function in thrasm.s would be useful here)
+    */
    
 // 1. Any virtual memory mappings belonging to other user processes should be unmapped
     memory_unmap_and_free_user();        //NEED IT EVENTUALLY
 
 // Not for CP2, but may later need to create new root table and initalize with default mapping for a user process
+
+    // struct process * curr = current_process();
+    // int s = intr_disable();
+    // curr->mtag = memory_space_clone(0);
+    // memory_space_switch(curr->mtag);
+    // asm inline ("sfence.vma" ::: "memory");
+    // intr_restore(s);
 
 
 // 2. Executable loaded from I/O interface provided as argument into the mapped pages
@@ -220,7 +242,12 @@ int process_fork(const struct trap_frame * tfr)
     }
 
     new_proc->mtag = memory_space_clone(0);
-    console_printf("parent mtag: %llx, child_proc mtag: %llx", csrr_satp(), new_proc->mtag);    
+    int s = intr_disable();
+    memory_space_switch(new_proc->mtag);
+    asm inline ("sfence.vma" ::: "memory");
+    intr_restore(s);
+
+    // console_printf("parent mtag: %llx, child_proc mtag: %llx", csrr_satp(), new_proc->mtag);    
     
     int y = thread_fork_to_user(&new_proc, tfr);
 
