@@ -622,6 +622,27 @@ void idle_thread_func(void * arg __attribute__ ((unused))) {
     }
 }
 
+/*
+int thread_fork_to_user(struct process * child_proc, const struct trap_frame * parent_tfr){
+Inputs:
+child_proc - the child process we have creates
+parent_tfr - the parent trap frame
+
+Outputs:
+an int which represents the return value from thread_fork_to_user,
+which is the child thread ID in the parent, 0 in the child process
+
+Effects:
+thread_fork_to_user sets up the new child thread. It sets the tid for the child process,
+switches the memory space, and then calls _thread_finish_fork to finish the forking process.
+
+Description:
+thread_fork_to_user starts by performing a similar result to thread_spawn, except we want to start executing the thread
+immediately. Thus, after creating the new thread with the necessary information, we switch the
+memory space using memory_space_switch with the child process' mtag. We then finish
+the forking process by calling _thread_fork_to_finish();
+*/
+
 
 int thread_fork_to_user(struct process * child_proc, const struct trap_frame * parent_tfr){
     //new_proc.tid = running_thread();    //Feel like this will be wrong

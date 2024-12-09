@@ -803,9 +803,30 @@ struct pte * walk_pt(struct pte * root, uintptr_t vma, int create){
 }
 
 // Sam added
+
+/*
+uintptr_t memory_space_clone(uint_fast16_t asid)
+Inputs:
+asid - We don't use this input, so we just set it to 0
+
+Outputs:
+new_mtag - the mtag for the new space that we copied over
+
+Effects:
+memory_space_clone makes a copy of the memory for the active space, and returns
+the mtag of the new memory
+
+Description:
+memory_space_clone starts by allocating a new level 2 table. It then uses
+walk to walk down the active memory space, making a copy of every page table
+and page table entry. We must make sure to copy over all of the memory correctly,
+as well as checking to make sure we are looking at the flags to create the correct 
+pages.
+*/
+
 uintptr_t memory_space_clone(uint_fast16_t asid)
 {
-    // Probably needs work, look at with TA...
+
 
     // Clones memory space for current process, returns mtag of new memory space
     // Deep copy -> user pages and parts of table copied

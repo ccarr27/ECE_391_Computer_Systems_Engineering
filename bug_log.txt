@@ -10,15 +10,6 @@ i just needed to check for the number 243
 3. When making tests i could not 
 
 
-Sam:
-1. 
-6 fs open bugs
-3 process bugs
-2 syscall bug
-2 fork bugs
-
-
-
 CP3:
 
 Neel:
@@ -32,16 +23,23 @@ it should be.
 
 Dash:
 
-When initially testing locking on a dummy program, Locking "failed to get write lock"
-Bunch of execution bugs - add detail, fixed with Carlos
+When initially testing locking on a dummy program, our lock always said "failed to get write lock". We fixed this by making our
+locking conditions looser and allowing for locks to be picked up before trap entry exits.
 
+Worked with Carlos on these: 
+Store access/Instruction page fault: Faced a store access fault which is still unsolved after fork. Program crashes after sret 
+after thread_finish_fork. 
+also, sscratch was having incorrect value after running. fixed by setting it using the kernel child 
+stack pointer passed into thread_finish_fork using the child's sp in its context.
 
+Carlos:
+syswait error where the program was hanging. turns out we were using the incorrect tid, sleeping threads 
+which weren't running yet.
 
+Sam:
 
+fib error: fib wasn't running, turns out one of the new files hadn't been updated correctly. fixed by updating file to 
+correct values.
 
+memory clone: lvl 1 and 0 page tables weren't being cloned properly, had size 0. fixed by rewriting cloning scheme
 
-
-
-
-
-add-symbol-file ../user/bin/init0 0x0000000c0000000

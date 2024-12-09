@@ -229,6 +229,24 @@ _thread_finish_jump:
         .global _thread_finish_fork
         .type   _thread_finish_fork, @function
 
+# _thread_finish_fork(struct thread * child, const struct trap_frame * parent_tfr)
+#
+# inputs
+# child - the child thread that we have just created to switch into
+# parent_tfr - the original parent trap frame
+#
+# outputs
+# None
+#
+# Effects
+# _thread_finish_fork saves the currently running thread, switches to the new child process thread,
+# and then restores the saved trap frame before preparing to properly jump to u mode
+#
+# Description
+# _thread_finish_fork allows us to jump to the user state, restoring the state from the parent trap frame.
+# It saves the parent state by allocating space for it, performs a thread switch similar to _thread_swtch(), and
+# jumps to the user space. It allows us to finish the forking process.
+
 _thread_finish_fork:
 
         # Saves currently running thread -> did in fork to user

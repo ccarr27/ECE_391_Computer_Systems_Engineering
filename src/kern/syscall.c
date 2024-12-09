@@ -454,6 +454,22 @@ int sysclose(int fd)
     return 0;
 }
 
+/*
+static int sysfork(const struct trap_frame * tfr)
+Inputs:
+tfr - the parent trap frame we are looking at
+
+Outputs:
+an int which represents the return value from thread_fork_to_user,
+which is the child thread ID in the parent, 0 in the child process
+
+Effects:
+sysfork begins the process of forking by creating a copy of the invoking process.
+
+Description:
+sysfork calls process_fork with the parent trap frame to pass along the trap frame
+to begin creating a copy of the process/thread
+*/
 
 static int sysfork(const struct trap_frame * tfr)
 {
@@ -474,6 +490,23 @@ static int sysfork(const struct trap_frame * tfr)
     return process_fork(tfr);
 }
 
+/*
+static int syswait(int tid)
+Inputs:
+tid - thread id we are waiting
+
+Outputs:
+Returns the thread if of the child that exited, or an error code
+
+Effects:
+syswait waits for a child thread to exit
+
+Description:
+If tid is 0, syswait waits for any child to exit. If tid is > 0, it waits for the specific
+child indicated by the tid. Otherwise, it returns an error code.
+
+*/
+
 static int syswait(int tid)
 {
     // Wait for certain child to exit before returning. If tid is main thread, wait for any child to exit
@@ -490,12 +523,28 @@ static int syswait(int tid)
         return thread_join(tid);
 }
 
+/*
+static int sysusleep(unsigned long us)
+Inputs:
+us - the number of microseconds to sleep for
+
+Outputs:
+Returns 0 after sleeping for the desired number of microseconds
+
+Effects:
+sysusleep sleeps for the desired number of microseconds
+
+Description:
+sysusleep initializes an alarm, and then calls sleep on it for us microseconds,
+which allows us to sleep until we are ready to continue
+*/
+
 static int sysusleep(unsigned long us)
 {
     // Sleeps for us number of microseconds (read timer.c)
     struct alarm *al = kmalloc(sizeof(struct alarm));
-    alarm_init(al, "alarm");
-    alarm_sleep_us(al, us);
+    alarm_init(al, "alarm");    // initialize alarm
+    alarm_sleep_us(al, us);     // Sleep for us
     kfree(al);
 
     return 0;

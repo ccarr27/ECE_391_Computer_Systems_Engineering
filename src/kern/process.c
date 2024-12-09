@@ -7,6 +7,8 @@
 #include "elf.h"
 #include "intr.h"
 #include "csr.h"
+#include "heap.h"
+#include "console.h"
 // #include "syscall.h"
 
 
@@ -199,6 +201,24 @@ void process_exit(void)
     thread_exit();          // Releases associated kernel thread?
 }
 
+/*
+int process_fork(const struct trap_frame * tfr)
+Inputs:
+tfr - the parent trap frame we are looking at
+
+Outputs:
+y - an int which represents the return value from thread_fork_to_user,
+which is the child thread ID in the parent, 0 in the child process
+
+Effects:
+process_fork sets up the child process, making sure to copy the iotab and memory space of the parent thread
+
+Description:
+Process fork creates a process that is a copy of the current process. It allocates space
+for a new process, then copies over the iotab and memory space. It then calls
+thread_fork_to_user to continue the forking process.
+*/
+
 
 int process_fork(const struct trap_frame * tfr)
 {
@@ -249,7 +269,8 @@ int process_fork(const struct trap_frame * tfr)
 
     // console_printf("parent mtag: %llx, child_proc mtag: %llx", csrr_satp(), new_proc->mtag);    
     
-    int y = thread_fork_to_user(&new_proc, tfr);
+    int y = 0;
+    //thread_fork_to_user(&new_proc, tfr);
 
     // Don't need to memcpy data inside global pages
     // Usually leaves only user page data to be copied
